@@ -87,11 +87,13 @@ def fine_tune(args, *more):
         callbacks=callbacks,
         gpus=args["GPU"],
         deterministic=True,
-        # accelerator="ddp",
+        accelerator="ddp",
         val_check_interval=args["val_check_interval"],
         logger=CSVLogger(dir_path, f"seed_{args['seed']}") if not args["do_test_only"] else None,
         resume_from_checkpoint=args["resume_from_ckpt"],
         # limit_val_batches=0.05,
+        # # set accelrator to auto
+        # accelerator="ddp2"
     )
 
     if not args["do_test_only"]:
