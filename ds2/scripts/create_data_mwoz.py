@@ -304,11 +304,13 @@ def get_dial(dialogue):
     bvs = [t['belief_value_summary'] for t in d_orig['sys_log']]
     domain = [t['domain'] for t in d_orig['usr_log']]
     for item in zip(usr, sys, sys_a, domain, bvs):
+        # format of a dialogue
         dial.append({'usr':item[0],'sys':item[1], 'sys_a':item[2], 'domain':item[3], 'bvs':item[4]})
     return dial
 
 
 def loadData(args):
+    """download and unzip MultiWoZ"""
     data_url = os.path.join(args.main_dir, "data.json")
     if args.mwz_ver == '2.1':
         dataset_url = "https://www.repository.cam.ac.uk/bitstream/handle/1810/294507/MULTIWOZ2.1.zip?sequence=1&isAllowed=y"
@@ -439,6 +441,7 @@ def divideData(data,args):
 
     copyfile(os.path.join(args.main_dir,'ontology.json'), os.path.join(args.target_path,'ontology.json'))
 
+    # which dataset(test,valid) 
     testListFile = []
     fin = open(os.path.join(args.main_dir,'testListFile.json'), 'r')
     for line in fin:
@@ -527,8 +530,10 @@ def divideData(data,args):
 
 def main(args):
     print('Create WOZ-like dialogues. Get yourself a coffee, this might take a while.')
+    # create_data: process and delexicalize "data.json" and "dialogue_acts.json"
     delex_data = createData(args)
     print('Divide dialogues...')
+    # divide whole data according to the testListFile.json, validListFile.json and store.
     divideData(delex_data,args)
 
 

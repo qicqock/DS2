@@ -38,9 +38,10 @@ class DSTDataset(Dataset):
 
 def read_data(args, path_name, SLOTS, tokenizer, description, dataset=None):
     # Generate domain-dependent slot list
-    if args["only_domain"]:
+    # Return dialogue data in dictionary type
+    if args["only_domain"]: # per-domain few-shot settings
         eval_slots = [k for k in SLOTS if k.startswith(args["only_domain"])]
-    elif args['except_domain']:
+    elif args['except_domain']: # except target domains in training process
         eval_slots = [k for k in SLOTS if not k.startswith(args["except_domain"])]
     else:
         eval_slots = SLOTS
@@ -48,10 +49,12 @@ def read_data(args, path_name, SLOTS, tokenizer, description, dataset=None):
     print(("Reading all files from {}".format(path_name)))
     data = []
 
+    # "args.state_converter" choices=["mwz", "wo_para", "wo_concat", "vanilla", "open_domain"]
     converter = get_converter(args['state_converter'])
 
     domain_counter = defaultdict(int)
-    # read files
+    # read files 
+    # path_name: ("train", "dev", "test")
     with open(path_name) as f:
         dials = json.load(f)
 
@@ -208,6 +211,7 @@ def prepare_data(args, tokenizer):
         for k, path in paths.items()
     }
     
+    # reduce the size of dataset according to args["fewshot"]
     if 0.0 < args["fewshot"] < 1.0:
         num_train_diags = len(set(x["ID"] for x in datasets["train"]))
         num_few_diags = int(num_train_diags * args["fewshot"])

@@ -21,15 +21,18 @@ def fine_tune(args, *more):
     seed_everything(args["seed"])
     print(args)
 
+    
     tokenizer = AutoTokenizer.from_pretrained(args["model_checkpoint"])
     model = AutoModelForSeq2SeqLM.from_pretrained(args["model_checkpoint"])
 
+    # load data from train_dial.json, valid_dial.json, test_dial.json
     dataloaders, _ = prepare_data(
         args, tokenizer
     )
     print("Created dataloaders")
 
     # logging
+    # store logs in args["exp_name"] directory
     exp_name = args["exp_name"]
     if not os.path.exists("ds2/logs"):
         os.mkdir("ds2/logs")
@@ -37,7 +40,8 @@ def fine_tune(args, *more):
     if not os.path.exists(log_path):
         os.mkdir(log_path)
 
-
+    # load pretrained language model
+    # determine whether we pre-train or fine-tune
     if args["load_pretrained"]:
         pretrain_ckpt_path = os.path.join(args["load_pretrained"], "pretrain")
         pretrain_ckpts = [
@@ -59,7 +63,9 @@ def fine_tune(args, *more):
 
     print("Created Model")
 
+    # determine the path of logs
     dir_path = os.path.join(log_path, args["mode"])
+    # if do not test(train), do earlystopping 
     if not args["do_test_only"]:
         earlystopping_callback = EarlyStopping(
             monitor="val_loss" if args["eval_loss_only"] else "val_jga",
@@ -81,13 +87,13 @@ def fine_tune(args, *more):
 
     # profiler = PyTorchProfiler(export_to_chrome=True)
     trainer = Trainer(
-        accumulate_grad_batches=args["grad_acc_steps"],
+        accumulate_grad_batches=args["grad_acc_steps"], 
         gradient_clip_val=args["max_norm"],
         max_epochs=args["n_epochs"],
-        callbacks=callbacks,
-        gpus=args["GPU"],
+        callbacks=callbacks, # earlystopping
+        gpus=args["GPU"], 
         deterministic=True,
-        accelerator="ddp",
+        accelerator="ddp", # multiGPU
         val_check_interval=args["val_check_interval"],
         logger=CSVLogger(dir_path, f"seed_{args['seed']}") if not args["do_test_only"] else None,
         resume_from_checkpoint=args["resume_from_ckpt"],
@@ -96,9 +102,11 @@ def fine_tune(args, *more):
         # accelerator="ddp2"
     )
 
+    # if train, fit the trainer
     if not args["do_test_only"]:
         trainer.fit(dst_model, dataloaders["train"], dataloaders["dev"])
 
+    # if test
     if not args["do_train_only"]:
         print("test start...")
         # evaluate model
@@ -112,6 +120,7 @@ def fine_tune(args, *more):
         else:
             ckpt_path = checkpoint_callback.best_model_path
 
+        # load trained model from checkpoint
         dst_model = DS2.load_from_checkpoint(
             checkpoint_path=ckpt_path,
             args=args,
