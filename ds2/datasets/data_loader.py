@@ -190,6 +190,7 @@ def normalize_ontology(ontology: Dict[str, List[str]]) -> Dict[str, List[str]]:
 
 
 def prepare_data(args, tokenizer):
+    # ("train", "dev", "test") (2.0 and 2.1)
     if args["version"] == "2.0":
         paths = {
             k: f"ds2/data_mwoz_2.0/{k}_dials.json"
@@ -203,6 +204,7 @@ def prepare_data(args, tokenizer):
         }
         ontology = normalize_ontology(json.load(open("ds2/data_mwoz_2.1/mwz/ontology.json", "r")))
 
+    # slot information
     ALL_SLOTS = get_slot_information(ontology)
     description = json.load(open("ds2/utils/slot_description.json", "r"))
 

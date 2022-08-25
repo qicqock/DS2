@@ -20,7 +20,6 @@ def fine_tune(args, *more):
     args = vars(args)
     seed_everything(args["seed"])
     print(args)
-
     
     tokenizer = AutoTokenizer.from_pretrained(args["model_checkpoint"])
     model = AutoModelForSeq2SeqLM.from_pretrained(args["model_checkpoint"])

@@ -20,5 +20,5 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python ds2/scripts/train_ds2.py \
     --mode=finetune \
     --exp_name=bart-CD-1-Attr-pre \
     --seed=577 \
-    --version=2.0 \
+    --version=2.1 \
     --GPU=4 # set the number of gpus

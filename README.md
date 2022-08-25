@@ -1,8 +1,9 @@
-# Dialogue Summaries as Dialogue States (DS2)
+# DS2 with prompt tuning and prefix tuning
 
 Paper link: https://arxiv.org/abs/2203.01552
 
-Original DS2 repo: https://github.com/jshin49/ds2 
+Original DS2 repo: https://github.com/jshin49/ds2
+Original Prefix tuning repo: https://github.com/XiangLi1999/PrefixTuning
 
 (add more explanation to clearly show how to run the code)
 
@@ -12,17 +13,20 @@ Original DS2 repo: https://github.com/jshin49/ds2
 ```bash
 pip install -e .
 pip install -r requirements.txt # requires python 3.8
+
+# transformer version 3.2.0 throws type error when loading the tokenizer and model.
+pip install transformers==4.11.0
 ```
 
 1. **Get MWOZ data (for 2.0 change all 2.1 to 2.0)**
 
-MWOZ 2.0: https://github.com/budzianowski/multiwoz/blob/master/data/MultiWOZ_2.0.zip
+<!-- MWOZ 2.0: https://github.com/budzianowski/multiwoz/blob/master/data/MultiWOZ_2.0.zip
 
 MWOZ 2.1: https://github.com/budzianowski/multiwoz/blob/master/data/MultiWOZ_2.1.zip
 
 - unzip one of these versions and change the name as data_mwoz_{2.0/2.1}.
 
-- place it into the ds2/ directory and run the following code to create data.
+- place it into the ds2/ directory and run the following code to create data. -->
 
 For 2.0
 ```bash
@@ -34,11 +38,9 @@ For 2.1
 python scripts/create_data_mwoz.py --mwz_ver=2.1 --main_dir=data_mwoz_2.1 --target_path=data_mwoz_2.1/mwz
 ```
 
-2. **Training and Inference - Cross-domain**
+2. **Training and Inference - Cross-domain(CD)**
 
-**Pre-training**
-
-~~Example using T5 on Cross-domain pre-training. Note that this code will not work yet because we did not release our pretrained model checkpoints yet due to anonymity issues. We will release the checkpoints upon de-anonymization of the paper. Hence, we recommend using the following options to check our code.~~
+<!-- ~~Example using T5 on Cross-domain pre-training. Note that this code will not work yet because we did not release our pretrained model checkpoints yet due to anonymity issues. We will release the checkpoints upon de-anonymization of the paper. Hence, we recommend using the following options to check our code.~~ -->
 
 We have uploaded the T5 pre-trained on Dialogue Summarization model on HuggingFace Model Hub at https://huggingface.co/jaynlp/t5-large-samsum. Now you can choose between BART and T5 as such:
 - `model_name=bart` and `model_checkpoint=Salesforce/bart-large-xsum-samsum` 
@@ -47,6 +49,7 @@ We have uploaded the T5 pre-trained on Dialogue Summarization model on HuggingFa
     - add `--GPU={the number of gpu}` in command line
     - set `accelerator=ddp` in trainer(train_ds2.py)
 
+**2.1 Pre-training(target_domain = attraction)**
 ```bash
 CUDA_VISIBLE_DEVICES={gpu} python ds2/scripts/train_ds2.py \
     --dev_batch_size=8 \
@@ -67,7 +70,7 @@ CUDA_VISIBLE_DEVICES={gpu} python ds2/scripts/train_ds2.py \
     --version=2.1
 ```
 
-**Fine-tuning**
+**2.2 Fine-tune**
 ```bash
 CUDA_VISIBLE_DEVICES={gpu} python ds2/scripts/train_ds2.py \
     --dev_batch_size=8 \
@@ -89,7 +92,7 @@ CUDA_VISIBLE_DEVICES={gpu} python ds2/scripts/train_ds2.py \
     --version=2.1
 ```
 
-3. **Training and Inference - Multi-domain**
+3. **Training and Inference - Multi-domain(MD)**
 
 ```bash
 CUDA_VISIBLE_DEVICES={gpu} python ds2/scripts/train_ds2.py \
@@ -110,7 +113,7 @@ CUDA_VISIBLE_DEVICES={gpu} python ds2/scripts/train_ds2.py \
     --version=2.1
 ```
 
-4. **Training and Inference - Cross-task**
+4. **Training and Inference - Cross-task(CT)**
 
 ```bash
 CUDA_VISIBLE_DEVICES={gpu} python ds2/scripts/train_ds2.py \
