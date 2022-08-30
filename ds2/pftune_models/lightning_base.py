@@ -115,6 +115,9 @@ class PrefixTransformer(pl.LightningModule):
         self.output_dir = Path(self.hparams.output_dir)
         cache_dir = self.hparams.cache_dir if self.hparams.cache_dir else None
         print('the cache dir is {}'.format(cache_dir))
+
+        # For seq2seq_model, create self.config
+        # from args.model_name_or_path
         if config is None:
             self.config = AutoConfig.from_pretrained(
                 self.hparams.config_name if self.hparams.config_name else self.hparams.model_name_or_path,
@@ -131,8 +134,7 @@ class PrefixTransformer(pl.LightningModule):
                 assert hasattr(self.config, p), f"model config doesn't have a `{p}` attribute"
                 setattr(self.config, p, getattr(self.hparams, p))
 
-
-        # tokenizer
+        # tokenizer from Salesforce/bart-large-xsum-samsum
         if tokenizer is None:
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.hparams.tokenizer_name if self.hparams.tokenizer_name else self.hparams.model_name_or_path,
@@ -146,7 +148,9 @@ class PrefixTransformer(pl.LightningModule):
         self.config.use_prefix = True
 
         # seq2seq model
-        self.seq2seq_model_type = MODEL_MODES[mode]
+        self.seq2seq_model_type = MODEL_MODES[mode] # <class 'transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM'>
+        
+        # prepare seq2seq_model to use when preparing prefixTuning model
         if seq2seq_model is None:
             self.seq2seq_model = BartForConditionalGeneration.from_pretrained(
                 self.hparams.model_name_or_path,
@@ -157,8 +161,8 @@ class PrefixTransformer(pl.LightningModule):
         else:
             self.seq2seq_model = seq2seq_model
 
-
-        # prefix 
+        # For prefixTuningModel, create config_prefix
+        # config_prefix from args.model_name_or_path
         config_prefix = AutoConfig.from_pretrained(self.hparams.model_name_or_path, cache_dir=cache_dir)
         self.model_type = config_prefix.model_type
 
@@ -183,8 +187,6 @@ class PrefixTransformer(pl.LightningModule):
         config_prefix.vocab_size = len(self.tokenizer)
         # some extra stuff.
         config_prefix.mid_dim = self.hparams.mid_dim
-
-        # print(config_prefix)
 
         # prefixTuning model
         if self.hparams.prefixModel_name_or_path is not None:
@@ -438,6 +440,7 @@ class PrefixTransformer(pl.LightningModule):
         parser.add_argument("--train_batch_size", default=10, type=int)
         parser.add_argument("--dev_batch_size", default=10, type=int)
         parser.add_argument("--adafactor", action="store_true")
+
 
 
 

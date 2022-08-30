@@ -56,7 +56,7 @@ from ds2.pftune_models.lightning_base import BaseTransformer, PrefixTransformer,
 logger = logging.getLogger(__name__)
 
 # prefix Module
-# Manage gpu, data loader, evaluation, freezing, and forward 
+# Manage gpu, data, evaluation, freezing, and forward
 class PrefixSummarizationModule(PrefixTransformer):
     mode = "summarization"
     loss_names = ["loss"]
@@ -72,8 +72,8 @@ class PrefixSummarizationModule(PrefixTransformer):
             if hparams.sortish_sampler:
                 raise ValueError("--sortish_sampler and --max_tokens_per_batch may not be used simultaneously")
         
-        # overloading prefixTransformer
-        # args.mode in ['e2e', 'cnn_dm', 'webnlg', 'triples', 'xsum', 'xsum_news', 'xsum_news_sport','multiwoz']
+        # default: self.mode = summarization
+        # self.model means PrefixTuningModel
         super().__init__(hparams, num_labels=None, mode=self.mode, **kwargs)
         use_task_specific_params(self.model, "summarization")
         save_git_info(self.hparams.output_dir)
@@ -82,7 +82,7 @@ class PrefixSummarizationModule(PrefixTransformer):
         pickle_save(self.hparams, self.hparams_save_path)
         self.step_count = 0
         self.metrics = defaultdict(list)
-        self.model_type = self.config.model_type
+        self.model_type = self.config.model_type # e.g.) bart
         self.vocab_size = self.config.tgt_vocab_size if self.model_type == "fsmt" else self.config.vocab_size
 
         self.dataset_kwargs: dict = dict(
@@ -90,6 +90,8 @@ class PrefixSummarizationModule(PrefixTransformer):
             max_source_length=self.hparams.max_source_length,
             prefix=self.model.config.prefix or "",
         )
+
+        # define split. default: -1(use_alls)
         n_observations_per_split = {
             "train": self.hparams.n_train,
             "val": self.hparams.n_val,
@@ -97,6 +99,7 @@ class PrefixSummarizationModule(PrefixTransformer):
         }
         self.n_obs = {k: v if v >= 0 else None for k, v in n_observations_per_split.items()}
 
+        # define target maximum length
         self.target_lens = {
             "train": self.hparams.max_target_length,
             "val": self.hparams.val_max_target_length,
@@ -107,6 +110,7 @@ class PrefixSummarizationModule(PrefixTransformer):
         # if self.hparams.freeze_embeds:
         #     self.freeze_embeds()
 
+        # In init, freeze all parameters of the model
         freeze_params(self.seq2seq_model)
         assert_all_frozen(self.seq2seq_model)
         print('FREEZING ENTIRE seq2seq model.')
@@ -114,17 +118,25 @@ class PrefixSummarizationModule(PrefixTransformer):
         #     freeze_params(self.model.get_encoder())
         #     assert_all_frozen(self.model.get_encoder())
 
+
         self.hparams.git_sha = get_git_info()["repo_sha"]
         self.num_workers = hparams.num_workers
+
+        # set decoder_start_token_id
         self.decoder_start_token_id = None  # default to config
         if self.model.config.decoder_start_token_id is None and isinstance(self.tokenizer, MBartTokenizer):
             self.decoder_start_token_id = self.tokenizer.lang_code_to_id[hparams.tgt_lang]
             self.model.config.decoder_start_token_id = self.decoder_start_token_id
+
         self.dataset_class = (
             Seq2SeqDataset if hasattr(self.tokenizer, "prepare_seq2seq_batch") else LegacySeq2SeqDataset
         )
+
+        # beam search parameters
         self.eval_beams = self.model.config.num_beams if self.hparams.eval_beams is None else self.hparams.eval_beams
         assert self.eval_beams >= 1, f"got self.eval_beams={self.eval_beams}. Need an integer > 1"
+
+        # eval_max_gen_length
         if self.hparams.eval_max_gen_length is not None:
             self.eval_max_length = self.hparams.eval_max_gen_length
         else:
@@ -149,7 +161,7 @@ class PrefixSummarizationModule(PrefixTransformer):
             for d in [self.model.model.encoder, self.model.model.decoder]:
                 freeze_params(d.embed_positions)
                 freeze_params(d.embed_tokens)
-        else:
+        else: # e.g.) bart
             freeze_params(self.model.model.shared)
             for d in [self.model.model.encoder, self.model.model.decoder]:
                 freeze_params(d.embed_positions)
@@ -164,10 +176,13 @@ class PrefixSummarizationModule(PrefixTransformer):
         )
         return lmap(str.strip, gen_text)
 
+    # calculate loss between batch["input_ids"] and batch["labels"]
     def _step(self, batch: dict) -> Tuple:
         pad_token_id = self.tokenizer.pad_token_id
+
         src_ids, src_mask = batch["input_ids"], batch["attention_mask"]
         tgt_ids = batch["labels"]
+
         if isinstance(self.model, T5ForConditionalGeneration):
             decoder_input_ids = self.model._shift_right(tgt_ids)
         else:
@@ -178,11 +193,12 @@ class PrefixSummarizationModule(PrefixTransformer):
         #
         # return (outputs.loss,)
 
+        # In pytorch, "self" itself calls forward function
         outputs = self(src_ids, attention_mask=src_mask, decoder_input_ids=decoder_input_ids, use_cache=False,
                        use_prefix=True)
 
         lm_logits = outputs[0]
-        if self.hparams.label_smoothing == 0:
+        if self.hparams.label_smoothing == 0: # default: 0.0
             # Same behavior as modeling_bart.py, besides ignoring pad_token_id
             ce_loss_fct = torch.nn.CrossEntropyLoss(ignore_index=pad_token_id)
 
@@ -200,6 +216,7 @@ class PrefixSummarizationModule(PrefixTransformer):
     def pad(self) -> int:
         return self.tokenizer.pad_token_id
 
+    # calculate loss in a batch and save
     def training_step(self, batch, batch_idx) -> Dict:
         loss_tensors = self._step(batch)
 
@@ -215,6 +232,7 @@ class PrefixSummarizationModule(PrefixTransformer):
         # TODO(SS): make a wandb summary metric for this
         return {"loss": loss_tensors[0], "log": logs}
 
+    # mean accuracy of loss across batches at current batches
     def on_epoch_end(self):
         train_acc_mean = np.mean(self.training_acc_across_batches_at_curr_epoch)
         print('train_loss = {}'.format(train_acc_mean))
@@ -304,6 +322,7 @@ class PrefixSummarizationModule(PrefixTransformer):
         )
         return dataset
 
+    # dataloader
     def get_dataloader(self, type_path: str, batch_size: int, shuffle: bool = False) -> DataLoader:
         dataset = self.get_dataset(type_path)
 

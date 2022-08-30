@@ -45,44 +45,44 @@ def prefix_tune(args_ns, *more):
     seed_everything(args["seed"])
     print(args)
 
-    tokenizer = AutoTokenizer.from_pretrained(args["model_checkpoint"])
-    model = AutoModelForSeq2SeqLM.from_pretrained(args["model_checkpoint"])
+    # # load data from train_dial.json, valid_dial.json, test_dial.json
+    # dataloaders, _ = prepare_data(
+    #     args, tokenizer
+    # )
+    # print("Created dataloaders")
 
-    # load data from train_dial.json, valid_dial.json, test_dial.json
-    dataloaders, _ = prepare_data(
-        args, tokenizer
-    )
-    print("Created dataloaders")
+    # # mkdir to save model
+    # exp_name = args["exp_name"]
+    # if not os.path.exists("ds2/logs"):
+    #     os.mkdir("ds2/logs")
+    # log_path = f"ds2/logs/{exp_name}"
+    # if not os.path.exists(log_path):
+    #     os.mkdir(log_path)
+    # print("save_path is  {}".format(log_path))
 
-    # mkdir to save model
-    exp_name = args["exp_name"]
-    if not os.path.exists("ds2/logs"):
-        os.mkdir("ds2/logs")
-    log_path = f"ds2/logs/{exp_name}"
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
-    print("save_path is  {}".format(log_path))
+    # # load pretrained language model
+    # # determine whether we pre-train or fine-tune
+    # if args["load_pretrained"]:
+    #     pretrain_ckpt_path = os.path.join(args["load_pretrained"], "pretrain")
+    #     pretrain_ckpts = [
+    #         _ckpt for _ckpt in os.listdir(pretrain_ckpt_path)
+    #         if ".ckpt" in _ckpt
+    #     ]
+    #     assert len(pretrain_ckpts) == 1
+    #     ckpt = pretrain_ckpts[0]
+    #     print("load pretrained model from: ", os.path.join(pretrain_ckpt_path, ckpt))
+    #     dst_model = DS2.load_from_checkpoint(
+    #         os.path.join(pretrain_ckpt_path, ckpt),
+    #         args=args,
+    #         tokenizer=tokenizer,
+    #         sum_model=model,
+    #         qa_model=None,
+    #     )
+    # else:
+    #     dst_model = DS2(args, tokenizer, model, None)
 
-    # load pretrained language model
-    # determine whether we pre-train or fine-tune
-    if args["load_pretrained"]:
-        pretrain_ckpt_path = os.path.join(args["load_pretrained"], "pretrain")
-        pretrain_ckpts = [
-            _ckpt for _ckpt in os.listdir(pretrain_ckpt_path)
-            if ".ckpt" in _ckpt
-        ]
-        assert len(pretrain_ckpts) == 1
-        ckpt = pretrain_ckpts[0]
-        print("load pretrained model from: ", os.path.join(pretrain_ckpt_path, ckpt))
-        dst_model = DS2.load_from_checkpoint(
-            os.path.join(pretrain_ckpt_path, ckpt),
-            args=args,
-            tokenizer=tokenizer,
-            sum_model=model,
-            qa_model=None,
-        )
-    else:
-        dst_model = DS2(args, tokenizer, model, None)
+    # seed lightning
+    pl.seed_everything(args["seed"])
 
     # model init
     model = None
@@ -120,6 +120,7 @@ def prefix_tune(args_ns, *more):
 
     # test() without a model tests using the best checkpoint automatically
     trainer.test()
+
 
     # # determine the path
     # dir_path = os.path.join(log_path, args["mode"])
@@ -159,6 +160,7 @@ def prefix_tune(args_ns, *more):
     #     # # set accelrator to auto
     #     # accelerator="ddp2"
     # )
+
 
     # # if train, fit the trainer
     # if not args["do_test_only"]:
