@@ -6,3 +6,6 @@ nltk==3.6.5
 numpy==1.21.2
 torchmetrics==0.6.0
 setuptools==59.5.0
+gitpython
+rouge_score
+sacrebleu

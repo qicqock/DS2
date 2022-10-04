@@ -1,13 +1,9 @@
 ds2.egg-info/
 ds2/MultiWOZ_2.0.zip
 ds2/MultiWOZ_2.1.zip
-ds2/__pycache__/
-ds2/configs/__pycache__/
 ds2/data_mwoz_2.0/
 ds2/data_mwoz_2.1/
-ds2/datasets/__pycache__/
 ds2/logs/
-ds2/models/__pycache__/
-ds2/utils/__pycache__/
 t5-large-samsum/
 Salesforce/
+__pycache__/

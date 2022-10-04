@@ -2,7 +2,7 @@ import os, sys
 import argparse
 import pytorch_lightning as pl
 
-from ds2.pftune_models.pftune_model import PrefixSummarizationModule, SummarizationModule
+from ds2.pftune_models.pftune_model import PrefixSummarizationModule
 
 def get_args():
     parser = argparse.ArgumentParser(add_help=False)
@@ -16,7 +16,7 @@ def get_args():
     # parser.add_argument("--train_batch_size", type=int, default=2, help="Batch size for training")
     # parser.add_argument("--dev_batch_size", type=int, default=4, help="Batch size for validation")
     # parser.add_argument("--test_batch_size", type=int, default=4, help="Batch size for test")
-    # parser.add_argument("--grad_acc_steps", type=int, default=64, help="Accumulate gradients on several steps")
+    parser.add_argument("--grad_acc_steps", type=int, default=64, help="Accumulate gradients on several steps")
     # parser.add_argument("--lr", type=float, default=5e-5, help="Learning rate")
     parser.add_argument("--max_norm", type=float, default=1.0, help="Clipping gradient norm")
     parser.add_argument("--n_epochs", type=int, default=5, help="Number of training epochs")
