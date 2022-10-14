@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 from pathlib import Path
+from statistics import mode
 from typing import Any, Dict
 
 import pytorch_lightning as pl
@@ -198,7 +199,7 @@ class PrefixTransformer(pl.LightningModule):
         else:
             self.model = PrefixTuning(config_prefix, self.seq2seq_model)
 
-
+        # help(self.seq2seq_model)
 
     def load_hf_checkpoint(self, *args, **kwargs):
         assert False, 'why need to load model here?'
@@ -254,8 +255,9 @@ class PrefixTransformer(pl.LightningModule):
         effective_batch_size = self.hparams.train_batch_size * self.hparams.accumulate_grad_batches * num_devices
         dataset_size = len(self.train_loader.dataset)
         return (dataset_size / effective_batch_size) * self.hparams.max_epochs
-
-    def setup(self, mode):
+    
+    def setup(self, stage = mode): # dataloader 정의안해서 오류 뜸. 임시방편이다.
+    # def setup(self, mode): 
         if mode == "fit":
             self.train_loader = self.get_dataloader("train", self.hparams.train_batch_size, shuffle=True)
 
@@ -444,216 +446,216 @@ class PrefixTransformer(pl.LightningModule):
 
 
 
-class BaseTransformer(pl.LightningModule):
-    def __init__(
-        self,
-        hparams: argparse.Namespace,
-        num_labels=None,
-        mode="base",
-        config=None,
-        tokenizer=None,
-        model=None,
-        **config_kwargs
-    ):
-        """Initialize a model, tokenizer and config."""
-        super().__init__()
-        # TODO: move to self.save_hyperparameters()
-        # self.save_hyperparameters()
-        # can also expand arguments into trainer signature for easier reading
+# class BaseTransformer(pl.LightningModule):
+#     def __init__(
+#         self,
+#         hparams: argparse.Namespace,
+#         num_labels=None,
+#         mode="base",
+#         config=None,
+#         tokenizer=None,
+#         model=None,
+#         **config_kwargs
+#     ):
+#         """Initialize a model, tokenizer and config."""
+#         super().__init__()
+#         # TODO: move to self.save_hyperparameters()
+#         # self.save_hyperparameters()
+#         # can also expand arguments into trainer signature for easier reading
 
-        self.save_hyperparameters(hparams)
-        self.step_count = 0
-        self.output_dir = Path(self.hparams.output_dir)
-        cache_dir = self.hparams.cache_dir if self.hparams.cache_dir else None
-        if config is None:
-            self.config = AutoConfig.from_pretrained(
-                self.hparams.config_name if self.hparams.config_name else self.hparams.model_name_or_path,
-                **({"num_labels": num_labels} if num_labels is not None else {}),
-                cache_dir=cache_dir,
-                **config_kwargs,
-            )
-        else:
-            self.config: PretrainedConfig = config
+#         self.save_hyperparameters(hparams)
+#         self.step_count = 0
+#         self.output_dir = Path(self.hparams.output_dir)
+#         cache_dir = self.hparams.cache_dir if self.hparams.cache_dir else None
+#         if config is None:
+#             self.config = AutoConfig.from_pretrained(
+#                 self.hparams.config_name if self.hparams.config_name else self.hparams.model_name_or_path,
+#                 **({"num_labels": num_labels} if num_labels is not None else {}),
+#                 cache_dir=cache_dir,
+#                 **config_kwargs,
+#             )
+#         else:
+#             self.config: PretrainedConfig = config
 
-        extra_model_params = ("encoder_layerdrop", "decoder_layerdrop", "dropout", "attention_dropout")
-        for p in extra_model_params:
-            if getattr(self.hparams, p, None):
-                assert hasattr(self.config, p), f"model config doesn't have a `{p}` attribute"
-                setattr(self.config, p, getattr(self.hparams, p))
+#         extra_model_params = ("encoder_layerdrop", "decoder_layerdrop", "dropout", "attention_dropout")
+#         for p in extra_model_params:
+#             if getattr(self.hparams, p, None):
+#                 assert hasattr(self.config, p), f"model config doesn't have a `{p}` attribute"
+#                 setattr(self.config, p, getattr(self.hparams, p))
 
-        if tokenizer is None:
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.hparams.tokenizer_name if self.hparams.tokenizer_name else self.hparams.model_name_or_path,
-                cache_dir=cache_dir,
-            )
-        else:
-            self.tokenizer: PreTrainedTokenizer = tokenizer
+#         if tokenizer is None:
+#             self.tokenizer = AutoTokenizer.from_pretrained(
+#                 self.hparams.tokenizer_name if self.hparams.tokenizer_name else self.hparams.model_name_or_path,
+#                 cache_dir=cache_dir,
+#             )
+#         else:
+#             self.tokenizer: PreTrainedTokenizer = tokenizer
 
-        self.config.preseqlen = -1
-        self.config.use_prefix = False
+#         self.config.preseqlen = -1
+#         self.config.use_prefix = False
 
-        self.model_type = MODEL_MODES[mode]
-        if model is None:
-            self.model = self.model_type.from_pretrained(
-                self.hparams.model_name_or_path,
-                config=self.config,
-                cache_dir=cache_dir,
-            )
-        else:
-            self.model = model
+#         self.model_type = MODEL_MODES[mode]
+#         if model is None:
+#             self.model = self.model_type.from_pretrained(
+#                 self.hparams.model_name_or_path,
+#                 config=self.config,
+#                 cache_dir=cache_dir,
+#             )
+#         else:
+#             self.model = model
 
-    def load_hf_checkpoint(self, *args, **kwargs):
-        # assert False, 'unknown why need to load the model here.'
-        self.model = self.model_type.from_pretrained(*args, **kwargs)
+#     def load_hf_checkpoint(self, *args, **kwargs):
+#         # assert False, 'unknown why need to load the model here.'
+#         self.model = self.model_type.from_pretrained(*args, **kwargs)
 
-    def get_lr_scheduler(self):
-        get_schedule_func = arg_to_scheduler[self.hparams.lr_scheduler]
-        scheduler = get_schedule_func(
-            self.opt, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=self.total_steps
-        )
-        scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
-        return scheduler
+#     def get_lr_scheduler(self):
+#         get_schedule_func = arg_to_scheduler[self.hparams.lr_scheduler]
+#         scheduler = get_schedule_func(
+#             self.opt, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=self.total_steps
+#         )
+#         scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
+#         return scheduler
 
-    def configure_optimizers(self):
-        """Prepare optimizer and schedule (linear warmup and decay)"""
-        model = self.model
-        no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": self.hparams.weight_decay,
-            },
-            {
-                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-                "weight_decay": 0.0,
-            },
-        ]
-        if self.hparams.adafactor:
-            optimizer = Adafactor(
-                optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False
-            )
+#     def configure_optimizers(self):
+#         """Prepare optimizer and schedule (linear warmup and decay)"""
+#         model = self.model
+#         no_decay = ["bias", "LayerNorm.weight"]
+#         optimizer_grouped_parameters = [
+#             {
+#                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+#                 "weight_decay": self.hparams.weight_decay,
+#             },
+#             {
+#                 "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+#                 "weight_decay": 0.0,
+#             },
+#         ]
+#         if self.hparams.adafactor:
+#             optimizer = Adafactor(
+#                 optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False
+#             )
 
-        else:
-            optimizer = AdamW(
-                optimizer_grouped_parameters, lr=self.hparams.learning_rate, eps=self.hparams.adam_epsilon
-            )
-        self.opt = optimizer
+#         else:
+#             optimizer = AdamW(
+#                 optimizer_grouped_parameters, lr=self.hparams.learning_rate, eps=self.hparams.adam_epsilon
+#             )
+#         self.opt = optimizer
 
-        scheduler = self.get_lr_scheduler()
+#         scheduler = self.get_lr_scheduler()
 
-        return [optimizer], [scheduler]
+#         return [optimizer], [scheduler]
 
-    def test_step(self, batch, batch_nb):
-        return self.validation_step(batch, batch_nb)
+#     def test_step(self, batch, batch_nb):
+#         return self.validation_step(batch, batch_nb)
 
-    def test_epoch_end(self, outputs):
-        return self.validation_end(outputs)
+#     def test_epoch_end(self, outputs):
+#         return self.validation_end(outputs)
 
-    @property
-    def total_steps(self) -> int:
-        """The number of total training steps that will be run. Used for lr scheduler purposes."""
-        num_devices = max(1, self.hparams.gpus)  # TODO: consider num_tpu_cores
-        effective_batch_size = self.hparams.train_batch_size * self.hparams.accumulate_grad_batches * num_devices
-        dataset_size = len(self.train_loader.dataset)
-        return (dataset_size / effective_batch_size) * self.hparams.max_epochs
+#     @property
+#     def total_steps(self) -> int:
+#         """The number of total training steps that will be run. Used for lr scheduler purposes."""
+#         num_devices = max(1, self.hparams.gpus)  # TODO: consider num_tpu_cores
+#         effective_batch_size = self.hparams.train_batch_size * self.hparams.accumulate_grad_batches * num_devices
+#         dataset_size = len(self.train_loader.dataset)
+#         return (dataset_size / effective_batch_size) * self.hparams.max_epochs
 
-    def setup(self, mode):
-        if mode == "fit":
-            self.train_loader = self.get_dataloader("train", self.hparams.train_batch_size, shuffle=True)
+#     def setup(self, mode):
+#         if mode == "fit":
+#             self.train_loader = self.get_dataloader("train", self.hparams.train_batch_size, shuffle=True)
 
-    def get_dataloader(self, type_path, batch_size, shuffle=False):
-        raise NotImplementedError("You must implement this for your task")
+#     def get_dataloader(self, type_path, batch_size, shuffle=False):
+#         raise NotImplementedError("You must implement this for your task")
 
-    def train_dataloader(self):
-        return self.train_loader
+#     def train_dataloader(self):
+#         return self.train_loader
 
-    def val_dataloader(self):
-        return self.get_dataloader("dev", self.hparams.dev_batch_size, shuffle=False)
+#     def val_dataloader(self):
+#         return self.get_dataloader("dev", self.hparams.dev_batch_size, shuffle=False)
 
-    def test_dataloader(self):
-        return self.get_dataloader("test", self.hparams.dev_batch_size, shuffle=False)
+#     def test_dataloader(self):
+#         return self.get_dataloader("test", self.hparams.dev_batch_size, shuffle=False)
 
-    def _feature_file(self, mode):
-        return os.path.join(
-            self.hparams.data_dir,
-            "cached_{}_{}_{}".format(
-                mode,
-                list(filter(None, self.hparams.model_name_or_path.split("/"))).pop(),
-                str(self.hparams.max_seq_length),
-            ),
-        )
+#     def _feature_file(self, mode):
+#         return os.path.join(
+#             self.hparams.data_dir,
+#             "cached_{}_{}_{}".format(
+#                 mode,
+#                 list(filter(None, self.hparams.model_name_or_path.split("/"))).pop(),
+#                 str(self.hparams.max_seq_length),
+#             ),
+#         )
 
-    @pl.utilities.rank_zero_only
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any], filepath=None) -> None:
+#     @pl.utilities.rank_zero_only
+#     def on_save_checkpoint(self, checkpoint: Dict[str, Any], filepath=None) -> None:
 
-        save_path = filepath #self.output_dir.joinpath("checkpoint-curr_best")
-        print('the suggested save_path is {}, saving to {}'.format(filepath[:-5], save_path))
-        # save_path = self.output_dir.joinpath("best_tfmr")
-        self.model.config.save_step = self.step_count
-        self.model.save_pretrained(save_path)
-        self.tokenizer.save_pretrained(save_path)
+#         save_path = filepath #self.output_dir.joinpath("checkpoint-curr_best")
+#         print('the suggested save_path is {}, saving to {}'.format(filepath[:-5], save_path))
+#         # save_path = self.output_dir.joinpath("best_tfmr")
+#         self.model.config.save_step = self.step_count
+#         self.model.save_pretrained(save_path)
+#         self.tokenizer.save_pretrained(save_path)
 
-    @staticmethod
-    def add_model_specific_args(parser, root_dir):
-        parser.add_argument(
-            "--model_name_or_path",
-            default=None,
-            type=str,
-            required=True,
-            help="Path to pretrained model or model identifier from huggingface.co/models",
-        )
-        parser.add_argument(
-            "--config_name", default="", type=str, help="Pretrained config name or path if not the same as model_name"
-        )
-        parser.add_argument(
-            "--tokenizer_name",
-            default=None,
-            type=str,
-            help="Pretrained tokenizer name or path if not the same as model_name",
-        )
-        parser.add_argument(
-            "--cache_dir",
-            default=None,
-            type=str,
-            help="Where do you want to store the pre-trained models downloaded from s3",
-        )
-        parser.add_argument(
-            "--encoder_layerdrop",
-            type=float,
-            help="Encoder layer dropout probability (Optional). Goes into model.config",
-        )
-        parser.add_argument(
-            "--decoder_layerdrop",
-            type=float,
-            help="Decoder layer dropout probability (Optional). Goes into model.config",
-        )
-        parser.add_argument(
-            "--dropout",
-            type=float,
-            help="Dropout probability (Optional). Goes into model.config",
-        )
-        parser.add_argument(
-            "--attention_dropout",
-            type=float,
-            help="Attention dropout probability (Optional). Goes into model.config",
-        )
-        parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
-        parser.add_argument(
-            "--lr_scheduler",
-            default="linear",
-            choices=arg_to_scheduler_choices,
-            metavar=arg_to_scheduler_metavar,
-            type=str,
-            help="Learning rate scheduler",
-        )
-        parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
-        parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
-        parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
-        parser.add_argument("--num_workers", default=4, type=int, help="kwarg passed to DataLoader")
-        parser.add_argument("--num_train_epochs", dest="max_epochs", default=3, type=int)
-        parser.add_argument("--train_batch_size", default=32, type=int)
-        parser.add_argument("--dev_batch_size", default=32, type=int)
-        parser.add_argument("--adafactor", action="store_true")
+#     @staticmethod
+#     def add_model_specific_args(parser, root_dir):
+#         parser.add_argument(
+#             "--model_name_or_path",
+#             default=None,
+#             type=str,
+#             required=True,
+#             help="Path to pretrained model or model identifier from huggingface.co/models",
+#         )
+#         parser.add_argument(
+#             "--config_name", default="", type=str, help="Pretrained config name or path if not the same as model_name"
+#         )
+#         parser.add_argument(
+#             "--tokenizer_name",
+#             default=None,
+#             type=str,
+#             help="Pretrained tokenizer name or path if not the same as model_name",
+#         )
+#         parser.add_argument(
+#             "--cache_dir",
+#             default=None,
+#             type=str,
+#             help="Where do you want to store the pre-trained models downloaded from s3",
+#         )
+#         parser.add_argument(
+#             "--encoder_layerdrop",
+#             type=float,
+#             help="Encoder layer dropout probability (Optional). Goes into model.config",
+#         )
+#         parser.add_argument(
+#             "--decoder_layerdrop",
+#             type=float,
+#             help="Decoder layer dropout probability (Optional). Goes into model.config",
+#         )
+#         parser.add_argument(
+#             "--dropout",
+#             type=float,
+#             help="Dropout probability (Optional). Goes into model.config",
+#         )
+#         parser.add_argument(
+#             "--attention_dropout",
+#             type=float,
+#             help="Attention dropout probability (Optional). Goes into model.config",
+#         )
+#         parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
+#         parser.add_argument(
+#             "--lr_scheduler",
+#             default="linear",
+#             choices=arg_to_scheduler_choices,
+#             metavar=arg_to_scheduler_metavar,
+#             type=str,
+#             help="Learning rate scheduler",
+#         )
+#         parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
+#         parser.add_argument("--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer.")
+#         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
+#         parser.add_argument("--num_workers", default=4, type=int, help="kwarg passed to DataLoader")
+#         parser.add_argument("--num_train_epochs", dest="max_epochs", default=3, type=int)
+#         parser.add_argument("--train_batch_size", default=32, type=int)
+#         parser.add_argument("--dev_batch_size", default=32, type=int)
+#         parser.add_argument("--adafactor", action="store_true")
 
 
 class LoggingCallback(pl.Callback):

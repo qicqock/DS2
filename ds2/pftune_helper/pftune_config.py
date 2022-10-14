@@ -87,7 +87,7 @@ def get_args():
     # parser.add_argument('--use_dropout', type=str, default='no', help='')
     # parser.add_argument('--seed', type=int, default=101, help='') # old is 42
 
-    parser.add_argument('--bsz', type=int, default=10, help='') # batch size for prefixtuning Model
+    # parser.add_argument('--bsz', type=int, default=10, help='') # batch size for prefixtuning Model
     parser.add_argument('--use_big', type=str, default='no', help='')
     # parser.add_argument('--epoch', type=int, default=5, help='')
     # parser.add_argument('--max_steps', type=int, default=400, help='')

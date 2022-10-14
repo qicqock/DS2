@@ -255,6 +255,7 @@ def prepare_data(args, tokenizer):
             batch_size=args[f"{k}_batch_size"],
             shuffle=(k == "train"),
             collate_fn=collate_fn(tokenizer=tokenizer, converter=get_converter(args["state_converter"])),
+            num_workers=16
         ) for k, dataset in datasets.items()
     }
 

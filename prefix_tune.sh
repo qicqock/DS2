@@ -24,7 +24,7 @@
 
 # From Salesforce/bart-large-xsum-samsum, Only prefixtune, not testing
 # bart, 10% dataset, Multi Domain
-CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2.py \
+CUDA_VISIBLE_DEVICES=1 python ds2/pftune_scripts/pftune_ds2.py \
     --dev_batch_size=8 \
     --train_batch_size=2 \
     --n_epochs=100 \

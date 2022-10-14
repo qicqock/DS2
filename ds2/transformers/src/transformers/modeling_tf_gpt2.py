@@ -427,7 +427,7 @@ class TFGPT2DoubleHeadsModelOutput(ModelOutput):
             :obj:`(2, batch_size, num_heads, sequence_length, embed_size_per_head)`).
 
             Contains pre-computed hidden-states (key and values in the attention blocks) that can be used (see
-            ``past_key_values`` input) to speed up sequential decoding.
+            :obj:`past_key_values` input) to speed up sequential decoding.
         hidden_states (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``output_hidden_states=True`` is passed or when ``config.output_hidden_states=True``):
             Tuple of :obj:`tf.Tensor` (one for the output of the embeddings + one for the output of each layer)
             of shape :obj:`(batch_size, sequence_length, hidden_size)`.
@@ -508,7 +508,7 @@ GPT2_INPUTS_DOCSTRING = r"""
             Mask values selected in ``[0, 1]``:
 
             - 1 for tokens that are **not masked**,
-            - 0 for tokens that are **maked**.
+            - 0 for tokens that are **masked**.
 
             `What are attention masks? <../glossary.html#attention-mask>`__
         token_type_ids (:obj:`tf.Tensor` or :obj:`Numpy array` of shape :obj:`(batch_size, sequence_length)`, `optional`):

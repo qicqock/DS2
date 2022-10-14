@@ -31,9 +31,9 @@ import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader
 
-# etc
 from ds2.pftune_helper.pftune_config import get_args
 from ds2.pftune_models.pftune_model import PrefixSummarizationModule, PrefixDS2
+from ds2.pftune_models.lightning_base import OurModelCheckPoint
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def prefix_tune(args_ns, *more):
     print(args)
 
     tokenizer = AutoTokenizer.from_pretrained(args["model_checkpoint"])
-    model = AutoModelForSeq2SeqLM.from_pretrained(args["model_checkpoint"])
+    # model = AutoModelForSeq2SeqLM.from_pretrained(args["model_checkpoint"])
 
     # load data from train_dial.json, valid_dial.json, test_dial.json
     dataloaders, _ = prepare_data(
@@ -87,12 +87,9 @@ def prefix_tune(args_ns, *more):
 
     print("Created Model")
 
-    # print("time_sleep 100")
-    # time.sleep(100)
-
     # determine the path
     dir_path = os.path.join(log_path, args["mode"])
-
+    
     # if train, do earlystopping 
     if not args["do_test_only"]:
         earlystopping_callback = EarlyStopping(
@@ -102,23 +99,37 @@ def prefix_tune(args_ns, *more):
             verbose=False,
             mode="min" if args["eval_loss_only"] else "max",
         )
-        checkpoint_callback = ModelCheckpoint(
-            dirpath=dir_path,
-            filename="{val_loss:.3f}" if args["eval_loss_only"] else "{val_jga:.3f}",
+        # checkpoint_callback = ModelCheckpoint(
+        #     # dirpath=dir_path,
+        #     # filename="{val_loss:.3f}" if args["eval_loss_only"] else "{val_jga:.3f}",
+        #     filepath=dir_path, # For lower pytorch_lightning version, there is no "filename"
+        #     save_top_k=1,
+        #     monitor="val_loss" if args["eval_loss_only"] else "val_jga",
+        #     mode="min" if args["eval_loss_only"] else "max",
+        # )
+        checkpoint_callback = OurModelCheckPoint(
+            # prefix="{val_loss:.3f}" if args["eval_loss_only"] else "{val_jga:.3f}",
+            # In lower version of pytorch_lightning, filepath instead of filename and dirpath
+            filepath=dir_path + ("/{epoch}-{val_loss:.3f}" if args["eval_loss_only"] else "/{epoch}-{val_jga:.3f}"),
             save_top_k=1,
             monitor="val_loss" if args["eval_loss_only"] else "val_jga",
             mode="min" if args["eval_loss_only"] else "max",
         )
+
         callbacks = [earlystopping_callback, checkpoint_callback]
     else:
         callbacks = None
+        earlystopping_callback = None
+        checkpoint_callback = None
 
     # profiler = PyTorchProfiler(export_to_chrome=True)
     trainer = Trainer(
         accumulate_grad_batches=args["grad_acc_steps"], 
         gradient_clip_val=args["max_norm"],
         max_epochs=args["n_epochs"],
-        callbacks=callbacks, # earlystopping
+        # callbacks=callbacks,
+        checkpoint_callback=checkpoint_callback,
+        early_stop_callback=earlystopping_callback,
         gpus=args["GPU"], 
         deterministic=True,
         # accelerator="ddp", # multiGPU
@@ -133,30 +144,31 @@ def prefix_tune(args_ns, *more):
     # if train, fit the trainer
     if not args["do_test_only"]:
         trainer.fit(dst_model, dataloaders["train"], dataloaders["dev"])
+        # trainer.fit(dst_model)
 
     # if test
-    if not args["do_train_only"]:
-        print("test start...")
-        # evaluate model
-        args["num_beams"] = args["test_num_beams"]
-        if args["do_test_only"]:
-            ckpts = [_ckpt for _ckpt in os.listdir(dir_path) if ".ckpt" in _ckpt]
-            assert len(ckpts) == 1
-            ckpt = ckpts[0]
-            print("load pretrained model from: ", os.path.join(dir_path, ckpt))
-            ckpt_path = os.path.join(dir_path, ckpt)
-        else:
-            ckpt_path = checkpoint_callback.best_model_path
+    # if not args["do_train_only"]:
+    #     print("test start...")
+    #     # evaluate model
+    #     args["num_beams"] = args["test_num_beams"]
+    #     if args["do_test_only"]:
+    #         ckpts = [_ckpt for _ckpt in os.listdir(dir_path) if ".ckpt" in _ckpt]
+    #         assert len(ckpts) == 1
+    #         ckpt = ckpts[0]
+    #         print("load pretrained model from: ", os.path.join(dir_path, ckpt))
+    #         ckpt_path = os.path.join(dir_path, ckpt)
+    #     else:
+    #         ckpt_path = checkpoint_callback.best_model_path
 
-        # load trained model from checkpoint
-        dst_model = DS2.load_from_checkpoint(
-            checkpoint_path=ckpt_path,
-            args=args,
-            tokenizer=tokenizer,
-            sum_model=model,
-            qa_model=None
-        )
-        trainer.test(dst_model, dataloaders["test"])
+    #     # load trained model from checkpoint
+    #     dst_model = DS2.load_from_checkpoint(
+    #         checkpoint_path=ckpt_path,
+    #         args=args,
+    #         tokenizer=tokenizer,
+    #         sum_model=model,
+    #         qa_model=None
+    #     )
+    #     trainer.test(dst_model, dataloaders["test"])
 
 
 if __name__ == "__main__":

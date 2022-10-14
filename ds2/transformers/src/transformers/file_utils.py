@@ -34,10 +34,13 @@ from .utils import logging
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
+ENV_VARS_TRUE_VALUES = {"1", "ON", "YES"}
+ENV_VARS_TRUE_AND_AUTO_VALUES = ENV_VARS_TRUE_VALUES.union({"AUTO"})
+
 try:
     USE_TF = os.environ.get("USE_TF", "AUTO").upper()
     USE_TORCH = os.environ.get("USE_TORCH", "AUTO").upper()
-    if USE_TORCH in ("1", "ON", "YES", "AUTO") and USE_TF not in ("1", "ON", "YES"):
+    if USE_TORCH in ENV_VARS_TRUE_AND_AUTO_VALUES and USE_TF not in ENV_VARS_TRUE_VALUES:
         import torch
 
         _torch_available = True  # pylint: disable=invalid-name
@@ -52,7 +55,7 @@ try:
     USE_TF = os.environ.get("USE_TF", "AUTO").upper()
     USE_TORCH = os.environ.get("USE_TORCH", "AUTO").upper()
 
-    if USE_TF in ("1", "ON", "YES", "AUTO") and USE_TORCH not in ("1", "ON", "YES"):
+    if USE_TF in ENV_VARS_TRUE_AND_AUTO_VALUES and USE_TORCH not in ENV_VARS_TRUE_VALUES:
         import tensorflow as tf
 
         assert hasattr(tf, "__version__") and int(tf.__version__[0]) >= 2
@@ -66,10 +69,30 @@ except (ImportError, AssertionError):
 
 
 try:
+    USE_JAX = os.environ.get("USE_FLAX", "AUTO").upper()
+
+    if USE_JAX in ENV_VARS_TRUE_AND_AUTO_VALUES:
+        import flax
+        import jax
+
+        logger.info("JAX version {}, Flax: available".format(jax.__version__))
+        logger.info("Flax available: {}".format(flax))
+        _flax_available = True
+    else:
+        _flax_available = False
+except ImportError:
+    _flax_available = False  # pylint: disable=invalid-name
+
+
+try:
     import datasets  # noqa: F401
 
-    _datasets_available = True
-    logger.debug(f"Succesfully imported datasets version {datasets.__version__}")
+    # Check we're not importing a "datasets" directory somewhere
+    _datasets_available = hasattr(datasets, "__version__") and hasattr(datasets, "load_dataset")
+    if _datasets_available:
+        logger.debug(f"Succesfully imported datasets version {datasets.__version__}")
+    else:
+        logger.debug("Imported a datasets object but this doesn't seem to be the 🤗 datasets library.")
 
 except ImportError:
     _datasets_available = False
@@ -129,6 +152,47 @@ try:
 except ImportError:
     _faiss_available = False
 
+try:
+    import sklearn.metrics  # noqa: F401
+
+    import scipy.stats  # noqa: F401
+
+    _has_sklearn = True
+except (AttributeError, ImportError):
+    _has_sklearn = False
+
+try:
+    # Test copied from tqdm.autonotebook: https://github.com/tqdm/tqdm/blob/master/tqdm/autonotebook.py
+    get_ipython = sys.modules["IPython"].get_ipython
+    if "IPKernelApp" not in get_ipython().config:
+        raise ImportError("console")
+    if "VSCODE_PID" in os.environ:
+        raise ImportError("vscode")
+
+    import IPython  # noqa: F401
+
+    _in_notebook = True
+except (AttributeError, ImportError, KeyError):
+    _in_notebook = False
+
+
+try:
+    import sentencepiece  # noqa: F401
+
+    _sentencepiece_available = True
+
+except ImportError:
+    _sentencepiece_available = False
+
+
+try:
+    import tokenizers  # noqa: F401
+
+    _tokenizers_available = True
+
+except ImportError:
+    _tokenizers_available = False
+
 
 default_cache_path = os.path.join(torch_cache_home, "transformers")
 
@@ -143,6 +207,8 @@ TF_WEIGHTS_NAME = "model.ckpt"
 CONFIG_NAME = "config.json"
 MODEL_CARD_NAME = "modelcard.json"
 
+SENTENCEPIECE_UNDERLINE = "▁"
+SPIECE_UNDERLINE = SENTENCEPIECE_UNDERLINE  # Kept for backward compatibility
 
 MULTIPLE_CHOICE_DUMMY_INPUTS = [
     [[0, 1, 0, 1], [1, 0, 0, 1]]
@@ -164,6 +230,10 @@ def is_torch_available():
 
 def is_tf_available():
     return _tf_available
+
+
+def is_flax_available():
+    return _flax_available
 
 
 def is_torch_tpu_available():
@@ -188,6 +258,156 @@ def is_apex_available():
 
 def is_faiss_available():
     return _faiss_available
+
+
+def is_sklearn_available():
+    return _has_sklearn
+
+
+def is_sentencepiece_available():
+    return _sentencepiece_available
+
+
+def is_tokenizers_available():
+    return _tokenizers_available
+
+
+def is_in_notebook():
+    return _in_notebook
+
+
+def torch_only_method(fn):
+    def wrapper(*args, **kwargs):
+        if not _torch_available:
+            raise ImportError(
+                "You need to install pytorch to use this method or class, "
+                "or activate it with environment variables USE_TORCH=1 and USE_TF=0."
+            )
+        else:
+            return fn(*args, **kwargs)
+
+    return wrapper
+
+
+DATASETS_IMPORT_ERROR = """
+{0} requires the 🤗 Datasets library but it was not found in your enviromnent. You can install it with:
+```
+pip install datasets
+```
+In a notebook or a colab, you can install it by executing a cell with
+```
+!pip install datasets
+```
+then restarting your kernel.
+
+Note that if you have a local folder named `datasets` or a local python file named `datasets.py` in your current
+working directory, python may try to import this instead of the 🤗 Datasets library. You should rename this folder or
+that python file if that's the case.
+"""
+
+
+TOKENIZERS_IMPORT_ERROR = """
+{0} requires the 🤗 Tokenizers library but it was not found in your enviromnent. You can install it with:
+```
+pip install tokenizers
+```
+In a notebook or a colab, you can install it by executing a cell with
+```
+!pip install tokenizers
+```
+"""
+
+
+SENTENCEPIECE_IMPORT_ERROR = """
+{0} requires the SentencePiece library but it was not found in your enviromnent. Checkout the instructions on the
+installation page of its repo: https://github.com/google/sentencepiece#installation and follow the ones
+that match your enviromnent.
+"""
+
+
+FAISS_IMPORT_ERROR = """
+{0} requires the faiss library but it was not found in your enviromnent. Checkout the instructions on the
+installation page of its repo: https://github.com/facebookresearch/faiss/blob/master/INSTALL.md and follow the ones
+that match your enviromnent.
+"""
+
+
+PYTORCH_IMPORT_ERROR = """
+{0} requires the PyTorch library but it was not found in your enviromnent. Checkout the instructions on the
+installation page: https://pytorch.org/get-started/locally/ and follow the ones that match your enviromnent.
+"""
+
+
+SKLEARN_IMPORT_ERROR = """
+{0} requires the scikit-learn library but it was not found in your enviromnent. You can install it with:
+```
+pip install -U scikit-learn
+```
+In a notebook or a colab, you can install it by executing a cell with
+```
+!pip install -U scikit-learn
+```
+"""
+
+
+TENSORFLOW_IMPORT_ERROR = """
+{0} requires the TensorFlow library but it was not found in your enviromnent. Checkout the instructions on the
+installation page: https://www.tensorflow.org/install and follow the ones that match your enviromnent.
+"""
+
+
+FLAX_IMPORT_ERROR = """
+{0} requires the FLAX library but it was not found in your enviromnent. Checkout the instructions on the
+installation page: https://github.com/google/flax and follow the ones that match your enviromnent.
+"""
+
+
+def requires_datasets(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_datasets_available():
+        raise ImportError(DATASETS_IMPORT_ERROR.format(name))
+
+
+def requires_faiss(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_faiss_available():
+        raise ImportError(FAISS_IMPORT_ERROR.format(name))
+
+
+def requires_pytorch(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_torch_available():
+        raise ImportError(PYTORCH_IMPORT_ERROR.format(name))
+
+
+def requires_sklearn(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_sklearn_available():
+        raise ImportError(SKLEARN_IMPORT_ERROR.format(name))
+
+
+def requires_tf(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_tf_available():
+        raise ImportError(TENSORFLOW_IMPORT_ERROR.format(name))
+
+
+def requires_flax(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_flax_available():
+        raise ImportError(FLAX_IMPORT_ERROR.format(name))
+
+
+def requires_tokenizers(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_tokenizers_available():
+        raise ImportError(TOKENIZERS_IMPORT_ERROR.format(name))
+
+
+def requires_sentencepiece(obj):
+    name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
+    if not is_sentencepiece_available():
+        raise ImportError(SENTENCEPIECE_IMPORT_ERROR.format(name))
 
 
 def add_start_docstrings(*docstr):
@@ -360,11 +580,12 @@ PT_MASKED_LM_SAMPLE = r"""
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
         >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True)
 
-        >>> input_ids = tokenizer("Hello, my dog is cute", return_tensors="pt")["input_ids"]
+        >>> inputs = tokenizer("The capital of France is {mask}.", return_tensors="pt")
+        >>> labels = tokenizer("The capital of France is Paris.", return_tensors="pt")["input_ids"]
 
-        >>> outputs = model(input_ids, labels=input_ids)
+        >>> outputs = model(**inputs, labels=labels)
         >>> loss = outputs.loss
-        >>> prediction_logits = outputs.logits
+        >>> logits = outputs.logits
 """
 
 PT_BASE_MODEL_SAMPLE = r"""
@@ -426,14 +647,15 @@ TF_TOKEN_CLASSIFICATION_SAMPLE = r"""
         >>> import tensorflow as tf
 
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
-        >>> model = {model_class}.from_pretrained('{checkpoint}')
+        >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True))
 
         >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="tf")
         >>> input_ids = inputs["input_ids"]
         >>> inputs["labels"] = tf.reshape(tf.constant([1] * tf.size(input_ids).numpy()), (-1, tf.size(input_ids))) # Batch size 1
 
         >>> outputs = model(inputs)
-        >>> loss, scores = outputs[:2]
+        >>> loss = outputs.loss
+        >>> logits = outputs.logits
 """
 
 TF_QUESTION_ANSWERING_SAMPLE = r"""
@@ -443,14 +665,16 @@ TF_QUESTION_ANSWERING_SAMPLE = r"""
         >>> import tensorflow as tf
 
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
-        >>> model = {model_class}.from_pretrained('{checkpoint}')
+        >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True))
 
         >>> question, text = "Who was Jim Henson?", "Jim Henson was a nice puppet"
         >>> input_dict = tokenizer(question, text, return_tensors='tf')
-        >>> start_scores, end_scores = model(input_dict)
+        >>> outputs = model(input_dict)
+        >>> start_logits = outputs.start_logits
+        >>> end_logits = outputs.end_logits
 
         >>> all_tokens = tokenizer.convert_ids_to_tokens(input_dict["input_ids"].numpy()[0])
-        >>> answer = ' '.join(all_tokens[tf.math.argmax(start_scores, 1)[0] : tf.math.argmax(end_scores, 1)[0]+1])
+        >>> answer = ' '.join(all_tokens[tf.math.argmax(start_logits, 1)[0] : tf.math.argmax(end_logits, 1)[0]+1])
 """
 
 TF_SEQUENCE_CLASSIFICATION_SAMPLE = r"""
@@ -460,13 +684,14 @@ TF_SEQUENCE_CLASSIFICATION_SAMPLE = r"""
         >>> import tensorflow as tf
 
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
-        >>> model = {model_class}.from_pretrained('{checkpoint}')
+        >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True))
 
         >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="tf")
         >>> inputs["labels"] = tf.reshape(tf.constant(1), (-1, 1)) # Batch size 1
 
         >>> outputs = model(inputs)
-        >>> loss, logits = outputs[:2]
+        >>> loss = outputs.loss
+        >>> logits = outputs.logits
 """
 
 TF_MASKED_LM_SAMPLE = r"""
@@ -476,12 +701,14 @@ TF_MASKED_LM_SAMPLE = r"""
         >>> import tensorflow as tf
 
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
-        >>> model = {model_class}.from_pretrained('{checkpoint}')
+        >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True))
 
-        >>> input_ids = tf.constant(tokenizer.encode("Hello, my dog is cute", add_special_tokens=True))[None, :]  # Batch size 1
+        >>> inputs = tokenizer("The capital of France is {mask}.", return_tensors="tf")
+        >>> inputs["labels"] = tokenizer("The capital of France is Paris.", return_tensors="tf")["input_ids"]
 
-        >>> outputs = model(input_ids)
-        >>> prediction_scores = outputs[0]
+        >>> outputs = model(inputs)
+        >>> loss = outputs.loss
+        >>> logits = outputs.logits
 """
 
 TF_BASE_MODEL_SAMPLE = r"""
@@ -491,12 +718,12 @@ TF_BASE_MODEL_SAMPLE = r"""
         >>> import tensorflow as tf
 
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
-        >>> model = {model_class}.from_pretrained('{checkpoint}')
+        >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True))
 
         >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="tf")
         >>> outputs = model(inputs)
 
-        >>> last_hidden_states = outputs[0]  # The last hidden-state is the first element of the output tuple
+        >>> last_hidden_states = outputs.last_hidden_states
 """
 
 TF_MULTIPLE_CHOICE_SAMPLE = r"""
@@ -506,7 +733,7 @@ TF_MULTIPLE_CHOICE_SAMPLE = r"""
         >>> import tensorflow as tf
 
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
-        >>> model = {model_class}.from_pretrained('{checkpoint}')
+        >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True))
 
         >>> prompt = "In Italy, pizza served in formal settings, such as at a restaurant, is presented unsliced."
         >>> choice0 = "It is eaten with a fork and a knife."
@@ -517,7 +744,7 @@ TF_MULTIPLE_CHOICE_SAMPLE = r"""
         >>> outputs = model(inputs)  # batch size is 1
 
         >>> # the linear classifier still needs to be trained
-        >>> logits = outputs[0]
+        >>> logits = outputs.logits
 """
 
 TF_CAUSAL_LM_SAMPLE = r"""
@@ -527,18 +754,21 @@ TF_CAUSAL_LM_SAMPLE = r"""
         >>> import tensorflow as tf
 
         >>> tokenizer = {tokenizer_class}.from_pretrained('{checkpoint}')
-        >>> model = {model_class}.from_pretrained('{checkpoint}')
+        >>> model = {model_class}.from_pretrained('{checkpoint}', return_dict=True))
 
         >>> inputs = tokenizer("Hello, my dog is cute", return_tensors="tf")
         >>> outputs = model(inputs)
-        >>> logits = outputs[0]
+        >>> logits = outputs.logits
 """
 
 
-def add_code_sample_docstrings(*docstr, tokenizer_class=None, checkpoint=None, output_type=None, config_class=None):
+def add_code_sample_docstrings(
+    *docstr, tokenizer_class=None, checkpoint=None, output_type=None, config_class=None, mask=None
+):
     def docstring_decorator(fn):
         model_class = fn.__qualname__.split(".")[0]
         is_tf_class = model_class[:2] == "TF"
+        doc_kwargs = dict(model_class=model_class, tokenizer_class=tokenizer_class, checkpoint=checkpoint)
 
         if "SequenceClassification" in model_class:
             code_sample = TF_SEQUENCE_CLASSIFICATION_SAMPLE if is_tf_class else PT_SEQUENCE_CLASSIFICATION_SAMPLE
@@ -548,7 +778,8 @@ def add_code_sample_docstrings(*docstr, tokenizer_class=None, checkpoint=None, o
             code_sample = TF_TOKEN_CLASSIFICATION_SAMPLE if is_tf_class else PT_TOKEN_CLASSIFICATION_SAMPLE
         elif "MultipleChoice" in model_class:
             code_sample = TF_MULTIPLE_CHOICE_SAMPLE if is_tf_class else PT_MULTIPLE_CHOICE_SAMPLE
-        elif "MaskedLM" in model_class:
+        elif "MaskedLM" in model_class or model_class in ["FlaubertWithLMHeadModel", "XLMWithLMHeadModel"]:
+            doc_kwargs["mask"] = "[MASK]" if mask is None else mask
             code_sample = TF_MASKED_LM_SAMPLE if is_tf_class else PT_MASKED_LM_SAMPLE
         elif "LMHead" in model_class:
             code_sample = TF_CAUSAL_LM_SAMPLE if is_tf_class else PT_CAUSAL_LM_SAMPLE
@@ -558,7 +789,7 @@ def add_code_sample_docstrings(*docstr, tokenizer_class=None, checkpoint=None, o
             raise ValueError(f"Docstring can't be built for model {model_class}")
 
         output_doc = _prepare_output_docstrings(output_type, config_class) if output_type is not None else ""
-        built_doc = code_sample.format(model_class=model_class, tokenizer_class=tokenizer_class, checkpoint=checkpoint)
+        built_doc = code_sample.format(**doc_kwargs)
         fn.__doc__ = (fn.__doc__ or "") + "".join(docstr) + output_doc + built_doc
         return fn
 
@@ -843,7 +1074,7 @@ def get_from_cache(
         else:
             matching_files = [
                 file
-                for file in fnmatch.filter(os.listdir(cache_dir), filename + ".*")
+                for file in fnmatch.filter(os.listdir(cache_dir), filename.split(".")[0] + ".*")
                 if not file.endswith(".json") and not file.endswith(".lock")
             ]
             if len(matching_files) > 0:
@@ -974,7 +1205,7 @@ def is_tensor(x):
 class ModelOutput(OrderedDict):
     """
     Base class for all model outputs as dataclass. Has a ``__getitem__`` that allows indexing by integer or slice (like
-    a tuple) or strings (like a dictionnary) that will ignore the ``None`` attributes. Otherwise behaves like a
+    a tuple) or strings (like a dictionary) that will ignore the ``None`` attributes. Otherwise behaves like a
     regular python dictionary.
 
     .. warning::
