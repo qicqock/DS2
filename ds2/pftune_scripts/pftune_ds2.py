@@ -89,7 +89,7 @@ def prefix_tune(args_ns, *more):
 
     # determine the path
     dir_path = os.path.join(log_path, args["mode"])
-    
+
     # if train, do earlystopping 
     if not args["do_test_only"]:
         earlystopping_callback = EarlyStopping(
@@ -99,22 +99,20 @@ def prefix_tune(args_ns, *more):
             verbose=False,
             mode="min" if args["eval_loss_only"] else "max",
         )
-        # checkpoint_callback = ModelCheckpoint(
-        #     # dirpath=dir_path,
-        #     # filename="{val_loss:.3f}" if args["eval_loss_only"] else "{val_jga:.3f}",
-        #     filepath=dir_path, # For lower pytorch_lightning version, there is no "filename"
-        #     save_top_k=1,
-        #     monitor="val_loss" if args["eval_loss_only"] else "val_jga",
-        #     mode="min" if args["eval_loss_only"] else "max",
-        # )
-        checkpoint_callback = OurModelCheckPoint(
-            # prefix="{val_loss:.3f}" if args["eval_loss_only"] else "{val_jga:.3f}",
+        checkpoint_callback = ModelCheckpoint(
             # In lower version of pytorch_lightning, filepath instead of filename and dirpath
             filepath=dir_path + ("/{epoch}-{val_loss:.3f}" if args["eval_loss_only"] else "/{epoch}-{val_jga:.3f}"),
             save_top_k=1,
             monitor="val_loss" if args["eval_loss_only"] else "val_jga",
             mode="min" if args["eval_loss_only"] else "max",
         )
+        # checkpoint_callback = OurModelCheckPoint(
+        #     # In lower version of pytorch_lightning, filepath instead of filename and dirpath
+        #     filepath=dir_path + ("/{epoch}-{val_loss:.3f}" if args["eval_loss_only"] else "/{epoch}-{val_jga:.3f}"),
+        #     save_top_k=1,
+        #     monitor="val_loss" if args["eval_loss_only"] else "val_jga",
+        #     mode="min" if args["eval_loss_only"] else "max",
+        # )
 
         callbacks = [earlystopping_callback, checkpoint_callback]
     else:

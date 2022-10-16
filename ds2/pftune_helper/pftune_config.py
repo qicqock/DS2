@@ -8,15 +8,16 @@ def get_args():
     parser = argparse.ArgumentParser(add_help=False)
     parser = pl.Trainer.add_argparse_args(parser)
     
-    # ds2 dependent
-    
+    '''
+    ds2 dependent
+    '''
     parser.add_argument("--exp_name", type=str, required=True, help="exp name for logging")
     parser.add_argument("--model_checkpoint", type=str, default="t5-large", help="Path, url or short name of the model") # roles "output_dir"
     parser.add_argument("--state_converter", type=str, default="mwz", choices=["mwz", "wo_para", "wo_concat", "vanilla", "open_domain"])
     # parser.add_argument("--train_batch_size", type=int, default=2, help="Batch size for training")
     # parser.add_argument("--dev_batch_size", type=int, default=4, help="Batch size for validation")
     # parser.add_argument("--test_batch_size", type=int, default=4, help="Batch size for test")
-    parser.add_argument("--grad_acc_steps", type=int, default=64, help="Accumulate gradients on several steps")
+    # parser.add_argument("--grad_acc_steps", type=int, default=64, help="Accumulate gradients on several steps")
     # parser.add_argument("--lr", type=float, default=5e-5, help="Learning rate")
     parser.add_argument("--max_norm", type=float, default=1.0, help="Clipping gradient norm")
     parser.add_argument("--n_epochs", type=int, default=5, help="Number of training epochs")
@@ -48,9 +49,9 @@ def get_args():
     parser.add_argument("--balanced_sampling", action="store_true")
     parser.add_argument("--filtered_sampling", action="store_true")
 
-    
-    # prefix dependent
-
+    '''
+    prefix dependent
+    '''
     # ['e2e'(E2E dataset), 'cnn_dm'(cnn/daily mail), 'webnlg', 'triples', 'xsum', 'xsum_news', 'xsum_news_sport','multiwoz']
     parser.add_argument('--pf_mode', type=str, default='multiwoz', help='')
     # select tuning mode. ['prefixtune', 'finetune', 'finetune-top', 'bothtune', 'adaptertune']
@@ -114,7 +115,6 @@ def get_args():
 
     args = parser.parse_known_args()[0]
 
-
     assert args.optim_prefix in ['yes', 'no']
     if args.optim_prefix == 'yes':
         assert args.preseqlen is not None
@@ -127,22 +127,17 @@ def get_args():
     else:
         load_prefix_model = False
 
-
     assert args.pf_mode == 'multiwoz'
     if args.version == "2.0":
         parser.add_argument('--data_dir', type=str, default="ds2/data_mwoz_2.0/", help='')
     else:
         parser.add_argument('--data_dir', type=str, default="ds2/data_mwoz_2.1/", help='')
 
-    # output_dir
+    # match arguments of ds2 with those of pftune
     parser.add_argument('--output_dir', type=str, default="{}{}".format(args.log_dir,args.exp_name), help = '')
-
-    # for ds2 dataloader 
-    # add test_batch_size (same as dev_batch_size)
     parser.add_argument('--test_batch_size', type=int, default=args.dev_batch_size, help = '')
-    # add lr
     parser.add_argument('--lr', type=float, default=args.learning_rate)
-
+    parser.add_argument("--grad_acc_steps", type=int, default=args.accumulate_grad_batches , help="")
 
     args = parser.parse_args()
     # args.GPU = [int(gpu) for gpu in args.GPU]

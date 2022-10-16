@@ -31,7 +31,6 @@ import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader
 
-from ds2.pftune_helper.callbacks import Seq2SeqLoggingCallback, get_checkpoint_callback, get_early_stopping_callback
 from transformers import MBartTokenizer, T5ForConditionalGeneration
 
 from transformers.modeling_bart import shift_tokens_right # For transformers version 3.2.0
@@ -80,9 +79,9 @@ class PrefixSummarizationModule(PrefixTransformer):
         # self.model means PrefixTuningModel
         super().__init__(hparams, num_labels=None, mode=self.mode, **kwargs)
         use_task_specific_params(self.model, "summarization")
-        save_git_info(self.hparams.output_dir)
-        self.metrics_save_path = Path(self.output_dir) / "metrics.json"
-        self.hparams_save_path = Path(self.output_dir) / "hparams.pkl"
+        # save_git_info(self.hparams.output_dir)
+        # self.metrics_save_path = Path(self.output_dir) / "metrics.json"
+        # self.hparams_save_path = Path(self.output_dir) / "hparams.pkl"
         pickle_save(self.hparams, self.hparams_save_path)
         self.step_count = 0
         self.metrics = defaultdict(list)
