@@ -37,13 +37,12 @@ from ds2.pftune_models.lightning_base import OurModelCheckPoint
 
 logger = logging.getLogger(__name__)
 
-def prefix_tune(args_ns, *more):
+def prefix_tune_test(args_ns, *more):
     # args_ns is the same as args except for the object type
     # args_ns: Namespace object. ex) args.model_checkpoint
     # args: dictionary object. ex) args["model_checkpoint"]
     args = vars(args_ns)
     seed_everything(args["seed"])
-    pl.seed_everything(args["seed"]) # seed lightning
     print(args)
 
     tokenizer = AutoTokenizer.from_pretrained(args["model_checkpoint"])
@@ -64,85 +63,38 @@ def prefix_tune(args_ns, *more):
         os.mkdir(log_path)
     print("save_path is  {}".format(log_path))
 
-    # load pretrained language model
-    # determine whether we pre-train or fine-tune
-    if args["load_pretrained"]:
-        pretrain_ckpt_path = os.path.join(args["load_pretrained"], "pretrain")
-        pretrain_ckpts = [
-            _ckpt for _ckpt in os.listdir(pretrain_ckpt_path)
-            if ".ckpt" in _ckpt
-        ]
-        assert len(pretrain_ckpts) == 1
-        ckpt = pretrain_ckpts[0]
-        print("load pretrained model from: ", os.path.join(pretrain_ckpt_path, ckpt))
-        dst_model = DS2.load_from_checkpoint(
-            os.path.join(pretrain_ckpt_path, ckpt),
-            args=args,
-            tokenizer=tokenizer,
-            sum_model=model,
-            qa_model=None,
-        )
-    else:
-        dst_model = PrefixDS2(args, None)
-
-    print("Created Model")
-
     # determine the path
     dir_path = os.path.join(log_path, args["mode"], str(args["seed"]))
 
-    # if train, do earlystopping 
-    if not args["do_test_only"]:
-        earlystopping_callback = EarlyStopping(
-            monitor="val_loss" if args["eval_loss_only"] else "val_jga",
-            # min_delta=0.00,
-            patience=args["patience"],
-            verbose=False,
-            mode="min" if args["eval_loss_only"] else "max",
-        )
-        checkpoint_callback = ModelCheckpoint(
-            filepath=os.path.join(dir_path, "{epoch}-{val_loss:.3f}-{val_jga:.3f}"), 
-            save_top_k=1,
-            monitor="val_loss" if args["eval_loss_only"] else "val_jga",
-            mode="min" if args["eval_loss_only"] else "max",
-        )
-        # checkpoint_callback = OurModelCheckPoint(
-        #     # In lower version of pytorch_lightning, filepath instead of filename and dirpath
-        #     filepath=os.path.join(dir_path, "{epoch}-{val_loss:.3f}-{val_jga:.3f}"), 
-        #     save_top_k=1,
-        #     monitor="val_loss" if args["eval_loss_only"] else "val_jga",
-        #     mode="min" if args["eval_loss_only"] else "max",
-        # )
-
-        callbacks = [earlystopping_callback, checkpoint_callback]
-    else:
-        callbacks = None
-        earlystopping_callback = None
-        checkpoint_callback = None
+    callbacks = None
+    earlystopping_callback = None
+    checkpoint_callback = None
 
     # profiler = PyTorchProfiler(export_to_chrome=True)
     trainer = Trainer(
         accumulate_grad_batches=args["grad_acc_steps"], 
         gradient_clip_val=args["max_norm"],
         max_epochs=args["n_epochs"],
-        # callbacks=callbacks,
         checkpoint_callback=checkpoint_callback,
         early_stop_callback=earlystopping_callback,
         gpus=args["GPU"], 
         deterministic=True,
-        # accelerator="ddp", # multiGPU
         val_check_interval=args["val_check_interval"],
-        # logger=CSVLogger(dir_path, f"seed_{args['seed']}") if not args["do_test_only"] else None,
-        logger=CSVLogger(dir_path) if not args["do_test_only"] else None,
+        logger=None,
         resume_from_checkpoint=args["resume_from_ckpt"],
         # limit_val_batches=0.05,
         # # set accelrator to auto
         # accelerator="ddp2"
     )
 
-    # if train, fit the trainer
-    if not args["do_test_only"]:
-        trainer.fit(dst_model, dataloaders["train"], dataloaders["dev"])
+    print("test start...")
+
+    # evaluate model
+    args["num_beams"] = args["test_num_beams"]
+
+    dst_model = PrefixDS2(args, None)
+    trainer.test(dst_model, dataloaders["test"])
 
 if __name__ == "__main__":
     args = get_args()
-    prefix_tune(args)
+    prefix_tune_test(args)

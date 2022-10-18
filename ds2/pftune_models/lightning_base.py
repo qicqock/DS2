@@ -84,7 +84,7 @@ class OurModelCheckPoint(pl.callbacks.ModelCheckpoint):
         print('try calling the pl_module save')
         #pl_module.on_save_checkpoint(None, filepath)
         return
-
+    
     def _save_model(self, filepath: str, trainer, pl_module):
         print('saving models now/..')
         print('try calling the pl_module save')
@@ -191,7 +191,7 @@ class PrefixTransformer(pl.LightningModule):
 
         # prefixTuning model
         if self.hparams.prefixModel_name_or_path is not None:
-            print('loading from {}'.format(hparams.prefixModel_name_or_path))
+            print('loading from {}'.format(self.hparams.prefixModel_name_or_path))
             self.model = PrefixTuning.from_pretrained(self.hparams.prefixModel_name_or_path,
                         cache_dir=cache_dir,
                         config=config_prefix,
@@ -285,22 +285,38 @@ class PrefixTransformer(pl.LightningModule):
 
     @pl.utilities.rank_zero_only
     def save_checkpoint(self, trainer) -> None:
-        print('Saving the the checkpoint.')
+        print('Saving the checkpoint.')
         return
 
     @pl.utilities.rank_zero_only
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any], filepath=None) -> None:
-        # if filepath is not None:
-        #     save_path = filepath[:-5]
-        # else:
-        #     save_path = self.output_dir.joinpath("checkpoint-hello")
-        save_path = filepath #self.output_dir.joinpath("checkpoint-curr_best")
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any], filepath=None):
+        if filepath is not None:
+            save_path = filepath
+        else:
+            print("default save path")
+            save_path = self.output_dir.joinpath("checkpoint")
+
         print('the suggested save_path is {}, saving to {}'.format(filepath, save_path))
 
         self.model.config.save_step = self.step_count
         self.model.save_pretrained(save_path)
         self.tokenizer.save_pretrained(save_path)
         print('SAVING TO checkpoint {}'.format(save_path))
+    
+    def _save_model(self, filepath: str, trainer, pl_module):
+        # in debugging, track when we save checkpoints
+        trainer.dev_debugger.track_checkpointing_history(filepath)
+
+        print("filepath in _save_model: {}".format(filepath))
+        # make paths
+        if trainer.is_global_zero:
+            self._fs.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        # delegate the saving to the trainer
+        if self.save_function is not None:
+            self.save_function(filepath, self.save_weights_only)
+        else:
+            raise ValueError(".save_function() not set")
 
     @staticmethod
     def add_model_specific_args(parser, root_dir):

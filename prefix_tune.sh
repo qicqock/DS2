@@ -35,10 +35,10 @@
 
 # Only prefixtune, not testing
 # bart, 1% dataset, Multi Domain
-CUDA_VISIBLE_DEVICES=1 python ds2/pftune_scripts/pftune_ds2.py \
-    --dev_batch_size=8 \
+CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2.py \
+    --dev_batch_size=64 \
     --train_batch_size=1 \
-    --n_epochs=35 \
+    --n_epochs=20 \
     --num_beams=1 \
     --test_num_beams=1 \
     --val_check_interval=1.0 \

@@ -134,7 +134,8 @@ def get_args():
         parser.add_argument('--data_dir', type=str, default="ds2/data_mwoz_2.1/", help='')
 
     # match arguments of ds2 with those of pftune
-    parser.add_argument('--output_dir', type=str, default="{}{}".format(args.log_dir,args.exp_name), help = '')
+    # parser.add_argument('--output_dir', type=str, default="{}{}".format(args.log_dir,args.exp_name), help = '')
+    parser.add_argument('--output_dir', type=str, default=os.path.join(args.log_dir,args.exp_name, args.mode, str(args.seed)), help = '')
     parser.add_argument('--test_batch_size', type=int, default=args.dev_batch_size, help = '')
     parser.add_argument('--lr', type=float, default=args.learning_rate)
     parser.add_argument("--grad_acc_steps", type=int, default=args.accumulate_grad_batches , help="")
