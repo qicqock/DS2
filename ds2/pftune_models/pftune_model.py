@@ -946,25 +946,6 @@ class PrefixDS2(PrefixTransformer):
             "eval_slots": batch["eval_slots"],
         }
 
-    # # predict the result for each step
-    # def pred_step(self, batch, batch_idx):
-    #     self.model.eval()
-
-    #     pred_summary_token = self.sum_model.generate(
-    #         batch["encoder_input"], 
-    #         num_beams=self.args["num_beams"],
-    #         min_length=5,
-    #         max_length=100,
-    #         early_stopping=True,
-    #     )
-
-    #     return {
-    #         "pred_summary_token": pred_summary_token,
-    #         "gold_state": batch["slot_values"],
-    #         "gold_summary": batch["output_text"],
-    #         "eval_slots": batch["eval_slots"],
-    #     }
-
     def eval_epoch_end(self, outputs):
         res = {}
         res["loss"] = np.mean(outputs)

@@ -100,7 +100,7 @@ def prefix_tune(args_ns, *more):
             mode="min" if args["eval_loss_only"] else "max",
         )
         checkpoint_callback = ModelCheckpoint(
-            filepath=os.path.join(dir_path, "{epoch}-{val_loss:.3f}-{val_jga:.3f}"), 
+            filepath=os.path.join(dir_path, "{epoch}-{val_loss:.4f}-{val_jga:.4f}"), 
             save_top_k=1,
             monitor="val_loss" if args["eval_loss_only"] else "val_jga",
             mode="min" if args["eval_loss_only"] else "max",

@@ -89,7 +89,7 @@ class PrefixTuning(PretrainedBartModel):
         else:
             self.lowdata_token = None
 
-        # default = task_mode : None
+        # default: task_mode = None
         if self.task_mode == 'dataless':
             self.mode_para = 1
         elif self.task_mode == 'data2text' or self.task_mode == 'triples' or self.task_mode == 'webnlg' or \
@@ -148,8 +148,7 @@ class PrefixTuning(PretrainedBartModel):
                     self.get_prompt = self.get_prompt_p1_infix
                 else:
                     self.get_prompt = self.get_prompt_p1
-        # if optim_prefix = yes
-        # mode_para = 0
+        # default: optim_prefix = yes, mode_para = 0
         else: 
             self.mode_para = 0
             print('mode_para=0, for data2text Instruction based, just optimize a set of parameters ;) ')
@@ -203,12 +202,7 @@ class PrefixTuning(PretrainedBartModel):
                     self.get_prompt = self.get_prompt_p5
 
 
-
-
-
-
             # DIFFERENT PARAMETRIZATION:
-            # Not deep prefix tuning
             elif not deep_param:
                 low_data_init = 0
                 print('UNDER PARAMETRIZATION 1')
@@ -242,7 +236,6 @@ class PrefixTuning(PretrainedBartModel):
 
 
             # deep 1 
-            # 
             else:
                 low_data_init = 0
                 print('UNDER PARAMETRIZATION DEEP 1')
@@ -426,11 +419,8 @@ class PrefixTuning(PretrainedBartModel):
     def get_prompt_p5(self, control_code=None, gpt2=None, bsz=None, sample_size=1):
         old_bsz = bsz
         bsz = bsz * sample_size
-        # e.g. self.input_tokens = torch.arange(self.preseqlen).long()
         input_tokens = self.input_tokens.unsqueeze(0).expand(bsz, -1).to(self.device)
-        # activations that pass input_tokens
         temp_control = self.wte(input_tokens)
-        # pass control_trans sequential
         # In my opinion, past_key_values means the output embedding vectors 
         past_key_values = self.control_trans(temp_control) #bsz, seqlen, layer*emb
         bsz, seqlen, _ = past_key_values.shape
@@ -678,7 +668,7 @@ class PrefixTuning(PretrainedBartModel):
 
 
 class PrefixEmbTuning(GPT2PreTrainedModel):
-    """Classification Head for  transformer encoders"""
+    """Classification Head for transformer encoders"""
     def __init__(self, config, model_gpt2, optim_prefix=False, preseqlen=5, use_infix=False):
         super().__init__(config)
 

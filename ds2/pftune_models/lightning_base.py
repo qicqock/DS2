@@ -151,8 +151,8 @@ class PrefixTransformer(pl.LightningModule):
         # seq2seq model
         self.seq2seq_model_type = MODEL_MODES[mode] # <class 'transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM'>
         
-        # prepare seq2seq_model to use when preparing prefixTuning model
         if seq2seq_model is None:
+            print('loading Pretrained Model from {}'.format(self.hparams.model_name_or_path))
             self.seq2seq_model = BartForConditionalGeneration.from_pretrained(
                 self.hparams.model_name_or_path,
                 from_tf=bool(".ckpt" in self.hparams.model_name_or_path),
@@ -191,7 +191,7 @@ class PrefixTransformer(pl.LightningModule):
 
         # prefixTuning model
         if self.hparams.prefixModel_name_or_path is not None:
-            print('loading from {}'.format(self.hparams.prefixModel_name_or_path))
+            print('loading PrefixTuning Model from {}'.format(self.hparams.prefixModel_name_or_path))
             self.model = PrefixTuning.from_pretrained(self.hparams.prefixModel_name_or_path,
                         cache_dir=cache_dir,
                         config=config_prefix,
