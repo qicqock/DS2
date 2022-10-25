@@ -254,12 +254,6 @@ class PrefixTuning(PretrainedBartModel):
                 else:
                     self.get_prompt = self.get_prompt_p5
 
-
-                # if self.use_infix:
-                #     self.get_prompt = self.get_prompt_p5_infix
-                # else:
-                #     self.get_prompt = self.get_prompt_p5
-
                 self.use_encoder_prefix = True
                 self.use_cross_prefix = True
 

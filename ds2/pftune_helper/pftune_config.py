@@ -43,7 +43,7 @@ def get_args():
     parser.add_argument("--do_train_only", action='store_true')
     parser.add_argument("--do_test_only", action='store_true')
     parser.add_argument("--resume_from_ckpt", type=str,)
-    parser.add_argument("--patience", type=int, default=10)
+    parser.add_argument("--patience", type=int, default=3)
     parser.add_argument("--use_qa_deconverter", action='store_true')
     parser.add_argument("--qa_model_path", type=str)
     parser.add_argument("--balanced_sampling", action="store_true")
