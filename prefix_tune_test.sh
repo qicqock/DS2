@@ -6,29 +6,29 @@
 # PrefixTuning testing
 
 # # bart, 1% dataset, Multi Domain
-CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2_test.py \
-    --dev_batch_size=64 \
-    --test_num_beams=1 \
-    --val_check_interval=1.0 \
-    --fewshot=0.01 \
-    --gradient_accumulation_steps=1 \
-    --model_name=bart \
-    --model_checkpoint=Salesforce/bart-large-xsum-samsum \
-    --model_name_or_path=Salesforce/bart-large-xsum-samsum \
-    --prefixModel_name_or_path=ds2/logs/bart-MD-prefixtune-1%/prefixtune/47/checkpoint-epoch=8-val_jga=0.2581/pytorch_model.bin \
-    --mode=prefixtune \
-    --exp_name=bart-MD-prefixtune-1% \
-    --seed=47 \
-    --version=2.1 \
-    --GPU=1 \
-    --pf_mode=multiwoz \
-    --tuning_mode=prefixtune \
-    --optim_prefix=yes \
-    --preseqlen=200 \
-    --prefix_mode=activation \
-    --warmup_steps=100 \
-    --max_steps=400 \
-    --eval_steps=50
+# CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2_test.py \
+#     --dev_batch_size=64 \
+#     --test_num_beams=1 \
+#     --val_check_interval=1.0 \
+#     --fewshot=0.01 \
+#     --gradient_accumulation_steps=1 \
+#     --model_name=bart \
+#     --model_checkpoint=Salesforce/bart-large-xsum-samsum \
+#     --model_name_or_path=Salesforce/bart-large-xsum-samsum \
+#     --prefixModel_name_or_path=ds2/logs/bart-MD-prefixtune-1%/prefixtune/47/checkpoint-epoch=8-val_jga=0.2581/pytorch_model.bin \
+#     --mode=prefixtune \
+#     --exp_name=bart-MD-prefixtune-1% \
+#     --seed=47 \
+#     --version=2.1 \
+#     --GPU=1 \
+#     --pf_mode=multiwoz \
+#     --tuning_mode=prefixtune \
+#     --optim_prefix=yes \
+#     --preseqlen=200 \
+#     --prefix_mode=activation \
+#     --warmup_steps=100 \
+#     --max_steps=400 \
+#     --eval_steps=50
 
 # bart, 5% dataset, Multi Domain
 # CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2_test.py \
@@ -40,16 +40,16 @@ CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2_test.py \
 #     --model_name=bart \
 #     --model_checkpoint=Salesforce/bart-large-xsum-samsum \
 #     --model_name_or_path=Salesforce/bart-large-xsum-samsum \
-#     --prefixModel_name_or_path=ds2/logs/bart-MD-prefixtune-5%/prefixtune/47/checkpoint-epoch=6-val_jga=0.3961/pytorch_model.bin \
+#     --prefixModel_name_or_path=ds2/logs/bart-MD-prefixtune-5%-preseqlen=10/prefixtune/11/epoch=16-val_loss=0.0000-val_jga=0.4022.ckpt \
 #     --mode=prefixtune \
-#     --exp_name=bart-MD-prefixtune-5% \
-#     --seed=47 \
+#     --exp_name=bart-MD-prefixtune-5%-preseqlen=10 \
+#     --seed=11 \
 #     --version=2.1 \
 #     --GPU=1 \
 #     --pf_mode=multiwoz \
 #     --tuning_mode=prefixtune \
 #     --optim_prefix=yes \
-#     --preseqlen=200 \
+#     --preseqlen=10 \
 #     --prefix_mode=activation \
 #     --warmup_steps=100 \
 #     --max_steps=400 \
@@ -79,3 +79,57 @@ CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2_test.py \
 #     --warmup_steps=100 \
 #     --max_steps=400 \
 #     --eval_steps=50
+
+# bart, Multi Domain, preseqlen=10, mid_dim=800
+
+# 10% dataset
+CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2_test.py \
+    --dev_batch_size=64 \
+    --test_num_beams=1 \
+    --val_check_interval=1.0 \
+    --fewshot=0.1 \
+    --gradient_accumulation_steps=10 \
+    --model_name=bart \
+    --model_checkpoint=Salesforce/bart-large-xsum-samsum \
+    --model_name_or_path=Salesforce/bart-large-xsum-samsum \
+    --mode=prefixtune \
+    --prefixModel_name_or_path=ds2/logs/bart-MD-prefixtune-10%-preseqlen=10-mid_dim=800/prefixtune/11/checkpoint-epoch=13-val_jga=0.4190/pytorch_model.bin \
+    --exp_name=bart-MD-prefixtune-100%-preseqlen=10-mid_dim=800 \
+    --seed=11 \
+    --version=2.1 \
+    --GPU=1 \
+    --pf_mode=multiwoz \
+    --tuning_mode=prefixtune \
+    --optim_prefix=yes \
+    --preseqlen=10 \
+    --prefix_mode=activation \
+    --warmup_steps=100 \
+    --max_steps=400 \
+    --eval_steps=50 \
+    --mid_dim=800
+
+# 100% dataset
+# CUDA_VISIBLE_DEVICES=0 python ds2/pftune_scripts/pftune_ds2_test.py \
+#     --dev_batch_size=64 \
+#     --test_num_beams=1 \
+#     --val_check_interval=1.0 \
+#     --fewshot=1 \
+#     --gradient_accumulation_steps=10 \
+#     --model_name=bart \
+#     --model_checkpoint=Salesforce/bart-large-xsum-samsum \
+#     --model_name_or_path=Salesforce/bart-large-xsum-samsum \
+#     --mode=prefixtune \
+#     --prefixModel_name_or_path=ds2/logs/bart-MD-prefixtune-100%-preseqlen=10-mid_dim=800/prefixtune/47/checkpoint-epoch=6-val_jga=0.4899/pytorch_model.bin \
+#     --exp_name=bart-MD-prefixtune-100%-preseqlen=10-mid_dim=800 \
+#     --seed=47 \
+#     --version=2.1 \
+#     --GPU=1 \
+#     --pf_mode=multiwoz \
+#     --tuning_mode=prefixtune \
+#     --optim_prefix=yes \
+#     --preseqlen=10 \
+#     --prefix_mode=activation \
+#     --warmup_steps=100 \
+#     --max_steps=400 \
+#     --eval_steps=50 \
+#     --mid_dim=800
