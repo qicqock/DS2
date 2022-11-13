@@ -434,6 +434,7 @@ class PrefixSummarizationModule(PrefixTransformer):
         return parser
         
 
+# Custom Training class for Prefix_DS2
 class PrefixDS2(PrefixTransformer):
     mode = "summarization"
     # loss_names = ["loss"]

@@ -8,9 +8,12 @@ from typing import Any, Dict
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_info
 
+import time
+
 
 from transformers import (
     BartForConditionalGeneration,
+    T5ForConditionalGeneration,
     AdamW,
     AutoConfig,
     AutoModel,
@@ -23,6 +26,7 @@ from transformers import (
     AutoTokenizer,
     PretrainedConfig,
     PreTrainedTokenizer,
+    T5TokenizerFast
 )
 from transformers.optimization import (
     Adafactor,
@@ -32,7 +36,7 @@ from transformers.optimization import (
     get_polynomial_decay_schedule_with_warmup,
 )
 
-from ds2.pftune_models.prefixTuning import PrefixTuning
+from ds2.pftune_models.prefixTuning import PrefixTuning, T5PrefixTuning
 
 logger = logging.getLogger(__name__)
 
@@ -137,10 +141,16 @@ class PrefixTransformer(pl.LightningModule):
 
         # tokenizer from Salesforce/bart-large-xsum-samsum
         if tokenizer is None:
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.hparams.tokenizer_name if self.hparams.tokenizer_name else self.hparams.model_name_or_path,
-                cache_dir=cache_dir,
-            )
+            if self.hparams.model_name == "bart":
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    self.hparams.tokenizer_name if self.hparams.tokenizer_name else self.hparams.model_name_or_path,
+                    cache_dir=cache_dir,
+                )
+            else:
+                self.tokenizer = T5TokenizerFast.from_pretrained(
+                    self.hparams.tokenizer_name if self.hparams.tokenizer_name else self.hparams.model_name_or_path,
+                    cache_dir=cache_dir,
+                )
         else:
             self.tokenizer: PreTrainedTokenizer = tokenizer
 
@@ -153,7 +163,7 @@ class PrefixTransformer(pl.LightningModule):
         
         if seq2seq_model is None:
             print('loading Pretrained Model from {}'.format(self.hparams.model_name_or_path))
-            self.seq2seq_model = BartForConditionalGeneration.from_pretrained(
+            self.seq2seq_model = AutoModelForSeq2SeqLM.from_pretrained(
                 self.hparams.model_name_or_path,
                 from_tf=bool(".ckpt" in self.hparams.model_name_or_path),
                 config=self.config,
@@ -192,12 +202,21 @@ class PrefixTransformer(pl.LightningModule):
         # prefixTuning model
         if self.hparams.prefixModel_name_or_path is not None:
             print('loading PrefixTuning Model from {}'.format(self.hparams.prefixModel_name_or_path))
-            self.model = PrefixTuning.from_pretrained(self.hparams.prefixModel_name_or_path,
-                        cache_dir=cache_dir,
-                        config=config_prefix,
-                        model_gpt2=self.seq2seq_model)
+            if self.hparams.model_name == "bart":
+                self.model = PrefixTuning.from_pretrained(self.hparams.prefixModel_name_or_path,
+                            cache_dir=cache_dir,
+                            config=config_prefix,
+                            model_gpt2=self.seq2seq_model)
+            else:
+                self.model = T5PrefixTuning.from_pretrained(self.hparams.prefixModel_name_or_path,
+                            cache_dir=cache_dir,
+                            config=config_prefix,
+                            model_gpt2=self.seq2seq_model)
         else:
-            self.model = PrefixTuning(config_prefix, self.seq2seq_model)
+            if self.hparams.model_name == "bart":
+                self.model = PrefixTuning(config_prefix, self.seq2seq_model)
+            else:
+                self.model = T5PrefixTuning(config_prefix, self.seq2seq_model)
 
         # help(self.seq2seq_model)
 

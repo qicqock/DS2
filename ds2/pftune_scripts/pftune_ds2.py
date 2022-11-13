@@ -8,6 +8,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from transformers import (
     AutoTokenizer,
     AutoModelForSeq2SeqLM,
+    T5TokenizerFast
 )
 
 from ds2.datasets.data_loader import (
@@ -46,7 +47,11 @@ def prefix_tune(args_ns, *more):
     pl.seed_everything(args["seed"]) # seed lightning
     print(args)
 
-    tokenizer = AutoTokenizer.from_pretrained(args["model_checkpoint"])
+    if args["model_name"] == "bart":
+        tokenizer = AutoTokenizer.from_pretrained(args["model_checkpoint"])
+    else:
+        tokenizer = T5TokenizerFast.from_pretrained(args["model_checkpoint"])
+
     # model = AutoModelForSeq2SeqLM.from_pretrained(args["model_checkpoint"])
 
     # load data from train_dial.json, valid_dial.json, test_dial.json
@@ -82,10 +87,11 @@ def prefix_tune(args_ns, *more):
             sum_model=model,
             qa_model=None,
         )
+        print("Load pretrained model")
     else:
         dst_model = PrefixDS2(args, None)
+        print("Created Model")
 
-    print("Created Model")
 
     # determine the path
     dir_path = os.path.join(log_path, args["mode"], str(args["seed"]))

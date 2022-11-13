@@ -12,7 +12,7 @@ def get_args():
     ds2 dependent
     '''
     parser.add_argument("--exp_name", type=str, required=True, help="exp name for logging")
-    parser.add_argument("--model_checkpoint", type=str, default="t5-large", help="Path, url or short name of the model") # roles "output_dir"
+    parser.add_argument("--model_checkpoint", type=str, help="Path, url or short name of the model") # roles "output_dir"
     parser.add_argument("--state_converter", type=str, default="mwz", choices=["mwz", "wo_para", "wo_concat", "vanilla", "open_domain"])
     # parser.add_argument("--train_batch_size", type=int, default=2, help="Batch size for training")
     # parser.add_argument("--dev_batch_size", type=int, default=4, help="Batch size for validation")
